@@ -1,0 +1,17 @@
+experiment/round,experiment,round,protease type,protease concentration U/ml,selection_index
+gabe1,1,0,Trypsin,none,0
+gabe2,1,1,Trypsin,none,0sorted
+gabe3,1,1,Trypsin,low,1
+gabe4,1,1,Trypsin,high,2
+gabe5,1,2,Trypsin,low,3
+gabe6,1,2,Trypsin,high,4
+gabe7,1,3,Trypsin,low,5
+gabe8,1,3,Trypsin,high,6
+gabe9,1,0,Chymotrypsin,none,0
+gabe10,1,1,Chymotrypsin,none,0sorted
+gabe11,1,1,Chymotrypsin,low,1
+gabe12,1,1,Chymotrypsin,high,2
+gabe13,1,2,Chymotrypsin,low,3
+gabe14,1,2,Chymotrypsin,high,4
+gabe15,1,3,Chymotrypsin,low,5
+gabe16,1,3,Chymotrypsin,high,6
