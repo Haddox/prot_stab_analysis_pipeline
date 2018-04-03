@@ -6,29 +6,52 @@ This directory contains a computational pipeline for analyzing data from the hig
 
 The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, which are described below:
 
-* `designed_seqs_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following columns:
+* `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following columns:
     * `name` : a unique name for the design
     * `protein_sequence` : the protein sequence of the design
 
-* `experimental_summary_file` : the path to a CSV file with experimental metadata, where samples are rows and columns are different pieces of metadata. See [here](data/Rocklin_2017_Science/experimental_summary.csv) for an example. This file is based on the `experiments.csv` file from the Rocklin et al. study, but contains come additional columns, and is also missing certain columns that will be added in later by the analysis code. The columns must include:
+* `--fastq_dir` : a path to a directory that has the deep-sequencing data in the form of unassembled paired-end FASTQ files for all samples in the experiment.
+
+* `--experimental_summary_file` : the path to a CSV file with a variety of metadata for each sample in the experiment, where samples are rows and columns are different pieces of metadata. See [here](data/Rocklin_2017_Science/experimental_summary.csv) for an example. This file is based on the `experiments.csv` file from the Rocklin et al. study, but contains come additional columns, and is also missing certain columns that will be added in later by the analysis code. The columns must include:
     * `experiment_id` : a unique ID for the entire experiment (**need to decide if I want to use this somehow**)
     * `protease_type` : the protease associated with the sample (e.g., "trypsin" or "chymotrypsin")
     * `selection_strength` : the index of the selection step associated with the sample, following the indexing scheme used in the Rocklin et al. study. The standard range of these values is normally: 0-6, where "0" corresponds to the naive library that has not been exposed to protease and "6" corresponds to the library that has been challenged with the highest concentration of protease.
     * `conc_factor` : the fold-change in protease concentration between selection steps, i.e., when `selection_strength` is incrimented by a value of one. A value of 3 would indicate that the protease concentration is increased by 3 fold between selection steps.
     * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the 
-    * `fastq_id` : a string that is both common to all FASTQ files for a given sample and is *not* found in any other sample, such that this string can be used to search for and retrieve all relevant FASTQ files in the directory specified by the input argument called `fastq_dir` (see below).
+    * `fastq_id` : a string that is both common to all FASTQ files for a given sample. The code will search within the directory specified by `--fastq_dir` for all FASTQ files that contain this string in their name, aggregating the data among all matches. Thus, this ID must also be *unique* to each sample to avoid cross contamination of data between different samples.
     * `parent_expression`: the fraction of cells (events) passing the selection threshold in the given library before proteolysis, according to the sorting instrument.
     * `fraction_collected`: the fraction of cells (events) passing the selection threshold in the given library after proteolysis, according to the sorting instrument
     * `cells_collected`: the total number of cells (events) collected during the given selection, according to the sorting instrument
 
-* `fastq_dir` : a path to the directory that has the FASTQ files
+* `--pare_path` : a path to the program `PEAR`
 
-* `pare_path` : a path to the program `PEAR`
+* `--output_dir` : a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
+
+
+## Output of the pipeline
+
+All results are stored in the directory specified by the input command `--output_dir`. Within this directory, there are multiple subdirectories that contain the results:
+
+* `log.log` : a log file (still need to make this)
+
+* `paired_FASTQ_files/` : this directory contains assembled FASTQ files and associated log files generated by `PARE`:
+    * for each sample and for each pair of unassembled FASTQ files associated with that sample, a FASTQ of the assembled paired-end reads. The assembled FASTQ files are named according to the format: `{protease_type}_{selection_strength}-{n}.fastq`, where `protease_type` and `selection_strength` are derived from the corresponding entries in the input file specified by the command `--experimental_summary_file`, and where `n` corresponds to the index of the assembled pair of FASTQ files, indexed starting at one. This index is necessary since some samples may be associated with more than one pair of FASTQ files.
+
+* `counts/` : this directory contains counts files, including:
+    * for each sample, a file giving counts of all unique protein sequences observed in the deep-sequencing data
+    * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for proteins that match one of the input designs included in the file specified by the input command `--designed_sequences_file`
 
 
 ## An example analysis
 
 I provide an example of how to execute this pipeline in the `Jupyter` notebook called `analysis_code.ipynb`. In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
+
+
+## To do
+
+* Set up a system for logging progress of the script including:
+    * pairing of FASTQ files
+
 
 ## Summary of `Python` scripts in the pipeline
 
