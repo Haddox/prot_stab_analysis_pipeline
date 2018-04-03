@@ -1,0 +1,15 @@
+experiment_id,protease_type,protease_concentration_U/ml,selection_strength,conc_factor,parent,fastq_id,parent_expression,fraction_collected,matching_sequences,cells_collected
+1,trypsin,none,0,,,gabe1,,,,
+1,trypsin,low,1,3,0,gabe3,,,0.661,1372222
+1,trypsin,high,2,3,0,gabe4,,,0.667,873674
+1,trypsin,low,3,3,2,gabe5,0.366,0.23,0.676,1182476
+1,trypsin,high,4,3,2,gabe6,0.366,0.141,0.676,773933
+1,trypsin,low,5,3,4,gabe7,0.449,0.067,0.719,528673
+1,trypsin,high,6,3,4,gabe8,0.449,0.005,0.704,20088
+1,chymotrypsin,none,0,,,gabe9,,,,
+1,chymotrypsin,low,1,3,0,gabe11,,,0.606,758438
+1,chymotrypsin,high,2,3,0,gabe12,,,0.629,1145177
+1,chymotrypsin,low,3,3,2,gabe13,0.496,0.312,0.614,1463207
+1,chymotrypsin,high,4,3,2,gabe14,0.496,0.081,0.614,296415
+1,chymotrypsin,low,5,3,4,gabe15,0.565,0.014,0.36,34783
+1,chymotrypsin,high,6,3,4,gabe16,0.565,0.011,0.3,31325
