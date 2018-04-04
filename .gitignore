@@ -1,3 +1,9 @@
+### folders in the results directory ###
+results/
+
+### __pycache__ files ###
+*/__pycache__
+
 ### JupyterNotebook ###
 .ipynb_checkpoints*
 */.ipynb_checkpoints/*

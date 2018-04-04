@@ -4,14 +4,27 @@ Compute EC50 values using experimental data from the high-throughput protein-sta
 
 # Import `Python` modules
 import os
+import sys
 import argparse
 import glob
+import subprocess
+from multiprocessing import Pool
+import time
 
 import pandas
 
+# Import custom `Python` modules
+import deep_seq_utils
 
+
+
+# Run the main code
 def main():
     """Read in command-line arguments and execute the main code"""
+    
+    #---------------------------------------------------------------
+    # Read in command-line arguments and experimental metadata
+    #---------------------------------------------------------------
     
     # Get a path to the directory of this script relative to the current
     # working directory of where it is being called from
@@ -51,7 +64,13 @@ def main():
     summary_df = pandas.read_csv(experimental_summary_file)
     proteases = set(summary_df['protease_type'])
     selection_indices = set(summary_df['selection_strength'])
-
+    
+    
+    
+    #---------------------------------------------------------------
+    # Find and assemble all paired-end FASTQ files reads for each sample
+    #---------------------------------------------------------------
+    
     # Iterate through each sample in the experimental summary dataframe,
     # make a list of paired-end FASTQ files for each sample, and use `PARE`
     # to assemble each file pair
@@ -84,7 +103,10 @@ def main():
                     "Failed to find a matching R2 file for: {0}".format(f)
                 )
         
-        # Assemble each pair of FASTQ files using `PARE`
+        # Assemble each pair of FASTQ files using `PARE`, storing the assembled files
+        # in a dictionary called `FASTQ_files`, which has the following format:
+        # {`experiment_name`} : {list of all assembled FASTQ files for a given sample},
+        # where `experiment_name` is a sample-specific variable defined above.
         assert experiment_name not in FASTQ_files.keys(), \
             "Duplicate experiment name: {0}".format(experiment_name)
         FASTQ_files[experiment_name] = []
@@ -94,42 +116,80 @@ def main():
             # and a log file for the `PEAR` output
             outfile_prefix = os.path.join(paired_FASTQ_files_dir, '{0}-{1}'.format(experiment_name, pair_n))
             logfile = '{0}.log'.format(outfile_prefix)
-            paired_output_file = '{0}.fastq'.format(outfile_prefix)
+            paired_FASTQ_output_file = '{0}.assembled.fastq'.format(outfile_prefix)
+            FASTQ_files[experiment_name].append(paired_FASTQ_output_file)
             
             # Don't rerun the assembly if the ouptut file already exists. Otherwise,
             # run the assembly
-            if os.path.isfile(paired_output_file):
+            if os.path.isfile(paired_FASTQ_output_file):
                 print("The paired output FASTQ file already exists. Will not rerun `PARE`.")
+                break
                 continue
             else:
-                print("\nUsing PARE to assembling the files {0} and {1}".format(r1_file, r2_file))
-                print("Storing the results in an assembled FASTQ file called {0}".format(paired_output_file))
-                print("Logging the results of the run in a file called {0}".format(logfile))
-                cmd = ' '.join([
+                cmd = [
                     pear_path,
-                    '-f {0}'.format(r1_file),
-                    '-r {0}'.format(r2_file),
-                    '-o {0}'.format(outfile_prefix),
-                    '-j 20',
-                    '> {0}'.format(logfile)
-                ])
-                #{cmd}
-            break
-        
+                    '-f', r1_file,
+                    '-r', r2_file,
+                    '-o', outfile_prefix,
+                    '-j', '20'
+                ]
+                print("\nUsing PARE to assembling the files: {0} and {1}".format(r1_file, r2_file))
+                print("Using the command: {0}".format(' '.join(cmd)))
+                print("Storing the results in an assembled FASTQ file called: {0}".format(paired_FASTQ_output_file))
+                print("Logging the results of the run in a file called: {0}".format(logfile))
+                log = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                out, err = log.communicate()
+                with open(logfile, 'wb') as f:
+                    f.write(out)
+                    
+                    
+    
+    #---------------------------------------------------------------
+    # Compute protein counts from the deep-sequencing data for each sample
+    #---------------------------------------------------------------
     # For each sample, compute protein-level counts from the deep-sequencing data. Write
     # a file giving all observed counts, even for proteins that don't match a starting
     # design.
-        
     
+    input_data_for_computing_counts = []
+    for experiment_name in FASTQ_files:
+        fastq_files = FASTQ_files[experiment_name]
+        output_file = os.path.join(counts_dir, '{0}_counts.csv'.format(experiment_name))
+        if os.path.isfile(output_file):
+            print("Already have counts for the sample: {0}".format(experiment_name))
+            continue
+        else:
+            print("Computing counts for the sample: {0}".format(experiment_name))
+            input_data_for_computing_counts.append((fastq_files, output_file))
+
+    # Compute the counts in parallel, reporting the progress of the computation
+    if input_data_for_computing_counts:
+        n_procs = len(input_data_for_computing_counts)
+        myPool = Pool(processes=n_procs)
+        start = time.time()
+        all_out = myPool.map_async(deep_seq_utils.ComputeCounts, input_data_for_computing_counts)
+        while not all_out.ready():
+            print("%s tasks remaining after %s seconds." % (str(all_out._number_left), round(time.time() - start, 0)))
+            time.sleep(5000.0)
+        print("Finished %s processes in %s seconds!" % (n_procs, round(time.time() - start, 2)))
+
     # For each protease, aggregate counts across all samples, only including proteins
     # that are within the set of input designs, throwing out mismatching proteins
-    
     
     # Quantify the fraction of deep-sequencing counts for proteins that match one of
     # the starting designs or controls, and write the results to a file for computing
     # EC50 values
     
     
+    #---------------------------------------------------------------
+    # Compute EC50 values from the deep-sequencing counts
+    #---------------------------------------------------------------
+    
+    
+    
+    #---------------------------------------------------------------
+    # Compute stability scores from the EC50 values
+    #---------------------------------------------------------------
     
     
 
