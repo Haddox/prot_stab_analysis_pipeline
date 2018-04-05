@@ -77,7 +77,7 @@ def main():
         protease_type = row['protease_type']
         selection_index = row['selection_strength']
         experiment_name = '{0}_{1}'.format(protease_type, selection_index)
-        fastq_id = row['fastq_id'].replace('_', '-')
+        fastq_id = row['fastq_id']
 
         # Find all R1 and R2 files
         r1_files = glob.glob('{0}/{1}*_R1_*.fastq*'.format(fastq_dir, fastq_id))
@@ -89,7 +89,7 @@ def main():
         assert(len(r1_files) == len(r2_files))
         if len(r1_files) == 0:
             raise ValueError(
-                "Failed to find FASTQ files for the fastq_id: {0}".format(fastq_ID)
+                "Failed to find FASTQ files for the fastq_id: {0}".format(fastq_id)
             )
         for (f1, f2) in zip(r1_files, r2_files):
             assert f1.count('_R1_') == f2.count('_R2_') == 1, \
@@ -98,6 +98,11 @@ def main():
                 raise ValueError(
                     "Failed to find a matching R2 file for: {0}".format(f)
                 )
+        print("\nAggergating paired-end FASTQ files for the {0}-treated sample and for selection index {1}".format(
+            protease_type, selection_index)
+        )
+        print("Here is a list of R1 files: {0}".format(', '.join(r1_files)))
+        print("Here is a list of R2 files: {0}".format(', '.join(r1_files)))
         
         # Assemble each pair of FASTQ files using `PARE`, storing the assembled files
         # in a dictionary called `FASTQ_files`, which has the following format:
@@ -114,11 +119,14 @@ def main():
             logfile = '{0}.log'.format(outfile_prefix)
             paired_FASTQ_output_file = '{0}.assembled.fastq'.format(outfile_prefix)
             FASTQ_files[experiment_name].append(paired_FASTQ_output_file)
+            print("\nWill assemble the files {0} and {1}, outputting the assembled reads to a file called {2}".format(
+                r1_file, r2_file, paired_FASTQ_output_file
+            ))
             
             # Don't rerun the assembly if the ouptut file already exists. Otherwise,
             # run the assembly
             if os.path.isfile(paired_FASTQ_output_file):
-                print("The paired output FASTQ file called {0} already exists. Will not rerun `PARE`.".format(
+                print("\nThe paired output FASTQ file called {0} already exists. Will not rerun `PARE`.".format(
                     paired_FASTQ_output_file
                 ))
                 break
@@ -131,8 +139,7 @@ def main():
                     '-o', outfile_prefix,
                     '-j', '20'
                 ]
-                print("\nUsing PARE to assembling the files: {0} and {1}".format(r1_file, r2_file))
-                print("Using the command: {0}".format(' '.join(cmd)))
+                print("Calling PARE with the command: {0}".format(' '.join(cmd)))
                 print("Storing the results in an assembled FASTQ file called: {0}".format(paired_FASTQ_output_file))
                 print("Logging the results of the run in a file called: {0}".format(logfile))
                 log = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -150,13 +157,13 @@ def main():
     input_data_for_computing_counts = []
     for experiment_name in FASTQ_files:
         fastq_files = FASTQ_files[experiment_name]
-        output_file = os.path.join(counts_dir, '{0}_counts.csv'.format(experiment_name))
-        if os.path.isfile(output_file):
+        output_counts_file = os.path.join(counts_dir, '{0}_counts.csv'.format(experiment_name))
+        if os.path.isfile(output_counts_file):
             print("Already have counts for the sample: {0}".format(experiment_name))
             continue
         else:
             print("Computing counts for the sample: {0}".format(experiment_name))
-            input_data_for_computing_counts.append((fastq_files, output_file))
+            input_data_for_computing_counts.append((fastq_files, output_counts_file))
 
     # Compute the counts in parallel, reporting the progress of the computation
     if input_data_for_computing_counts:

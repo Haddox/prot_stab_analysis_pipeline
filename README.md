@@ -50,11 +50,14 @@ All results are stored in the directory specified by the input command `--output
 
 I provide an example of how to execute this pipeline in the `Jupyter` notebook called `analysis_code.ipynb`. In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
 
+I test that the results of my pipeline match the results from the Rocklin et al. study. Specifically, I have uploaded the following original data from the supplemental information of the Rocklin et al. study:
+    * for each protease, a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
+    * for each protease, a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
+
 
 ## To do
 
-* Set up a system for logging progress of the script including:
-    * pairing of FASTQ files
+* Set up a system for logging progress of the script including
 
 
 ## Summary of `Python` scripts in the pipeline
