@@ -38,8 +38,12 @@ All results are stored in the directory specified by the input command `--output
     * for each sample and for each pair of unassembled FASTQ files associated with that sample, a FASTQ of the assembled paired-end reads. The assembled FASTQ files are named according to the format: `{protease_type}_{selection_strength}-{n}.fastq`, where `protease_type` and `selection_strength` are derived from the corresponding entries in the input file specified by the command `--experimental_summary_file`, and where `n` corresponds to the index of the assembled pair of FASTQ files, indexed starting at one. This index is necessary since some samples may be associated with more than one pair of FASTQ files.
 
 * `counts/` : this directory contains counts files, including:
-    * for each sample, a file giving counts of all unique protein sequences observed in the deep-sequencing data
-    * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for proteins that match one of the input designs included in the file specified by the input command `--designed_sequences_file`
+    * for each sample, a file giving counts of all unique protein sequences observed in the deep-sequencing data. These files are named according to the format: `{protease_type}_{selection_strength}_counts.csv`.
+    * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for proteins that match one of the input designs included in the file specified by the input command `--designed_sequences_file`. These files are named according to the format: `{protease_type}.counts`.
+    
+* `ec50_values/` : this directory contains a varity of output files, including:
+    * `experiments.csv` : a file that serves as input into the script for computing EC50 values. This file is identical to the `experiments.csv` file described in the Rocklin et al. study.
+    * 
 
 
 ## An example analysis

@@ -49,22 +49,18 @@ def main():
     # Initialize output directories if they do not already exist
     paired_FASTQ_files_dir = os.path.join(output_dir, 'paired_FASTQ_files')
     counts_dir = os.path.join(output_dir, 'counts')
-    dirs = [output_dir, paired_FASTQ_files_dir, counts_dir]
+    ec50s_dir = os.path.join(output_dir, 'ec50_values')
+    dirs = [output_dir, paired_FASTQ_files_dir, counts_dir, ec50s_dir]
     for dir_i in dirs:
         if not os.path.isdir(dir_i):
             print("Making the directory: {0}".format(dir_i))
             os.makedirs(dir_i)
-
-    # Read the designed sequences into a dataframe
-    designed_seqs_df = pandas.read_csv(designed_sequences_file)
-    designed_seqs_df.set_index('protein_sequence', inplace=True)
 
     # Read the data from the experiments summary file into a dataframe
     # and get a list of unique proteases and unqiue selection indices
     summary_df = pandas.read_csv(experimental_summary_file)
     proteases = set(summary_df['protease_type'])
     selection_indices = set(summary_df['selection_strength'])
-    
     
     
     #---------------------------------------------------------------
@@ -122,7 +118,9 @@ def main():
             # Don't rerun the assembly if the ouptut file already exists. Otherwise,
             # run the assembly
             if os.path.isfile(paired_FASTQ_output_file):
-                print("The paired output FASTQ file already exists. Will not rerun `PARE`.")
+                print("The paired output FASTQ file called {0} already exists. Will not rerun `PARE`.".format(
+                    paired_FASTQ_output_file
+                ))
                 break
                 continue
             else:
@@ -141,8 +139,7 @@ def main():
                 out, err = log.communicate()
                 with open(logfile, 'wb') as f:
                     f.write(out)
-                    
-                    
+           
     
     #---------------------------------------------------------------
     # Compute protein counts from the deep-sequencing data for each sample
@@ -150,7 +147,6 @@ def main():
     # For each sample, compute protein-level counts from the deep-sequencing data. Write
     # a file giving all observed counts, even for proteins that don't match a starting
     # design.
-    
     input_data_for_computing_counts = []
     for experiment_name in FASTQ_files:
         fastq_files = FASTQ_files[experiment_name]
@@ -173,18 +169,117 @@ def main():
             time.sleep(5000.0)
         print("Finished %s processes in %s seconds!" % (n_procs, round(time.time() - start, 2)))
 
-    # For each protease, aggregate counts across all samples, only including proteins
-    # that are within the set of input designs, throwing out mismatching proteins
+        
+    #---------------------------------------------------------------
+    # Create input counts and metadata files for computing EC50 values
+    #---------------------------------------------------------------
+    # These input files include a single `experiments.csv` file with experimental metadata
+    # including the number of protein counts that match a starting sequence. These files
+    # also include one file per protease that reports counts at each selection step only
+    # for proteins that match one of the input designs. To make these input files, I will
+    # first read the designed sequences into a dataframe.
+    designed_seqs_df = pandas.read_csv(designed_sequences_file)
+    designed_seqs_df.set_index('protein_sequence', inplace=True)
     
-    # Quantify the fraction of deep-sequencing counts for proteins that match one of
-    # the starting designs or controls, and write the results to a file for computing
-    # EC50 values
+    # Next, I will initiate a dictionary for keeping track of information for writing the
+    # `experiments.csv` file
+    counts_metadata_dict = {
+        key : []
+        for key in ['protease_type', 'selection_strength', 'input', 'column', 'matching_sequences']
+    }
     
+    # Next, for each protease, I will aggregate the counts and record metadata
+    for protease in proteases:
+        
+        aggregate_counts_outfile = os.path.join(counts_dir, '{0}.counts'.format(protease))
+        aggregate_df = designed_seqs_df.copy(deep=True)
+        
+        for selection_index in selection_indices:
+            
+            # Read in the counts file
+            counts_file = os.path.join(counts_dir, '{0}_{1}_counts.csv'.format(protease, selection_index))
+            assert os.path.isfile(counts_file), "Could not find the file: {0}".format(counts_file)
+            df = pandas.read_csv(counts_file)
+            df.set_index('sequence', inplace=True)
+            
+            # Next, merge the counts with the dataframe of input sequences, using
+            # `how="left"` to only merge on the rows in the dataframe of input sequences.
+            # Some of the original sequences may not have counts if they weren't observed,
+            # which will lead to values of nan. I will convert these values to counts of
+            # zero.
+            aggregate_df = aggregate_df.merge(
+                df, left_index=True, right_index=True, how="left"
+            )
+            aggregate_df.fillna(value=0, inplace=True)
+            aggregate_df.rename(
+                index=str,
+                columns={'counts': 'counts{0}'.format(selection_index)},
+                inplace=True
+            )
+                        
+            # Next, I will compute the total number of deep-sequencing counts, including
+            # for sequences that do not match one of the input sequences
+            total_counts = sum(df['counts'])
+            n_unique_sequences = len(df['counts'].index.values)
+
+            # Next, I will compute the fraction of all counts that actually match one of
+            # the input sequences. To do so, I will first merge the counts dataframe
+            # with a dataframe from above with sequences of input designs, using
+            # `how=outer` to use the union of indices from both frames, so that no row
+            # gets dropped.
+            df = df.merge(designed_seqs_df, left_index=True, right_index=True, how="outer")
+            total_counts_matching_starting_seqs = sum(
+                df[
+                    (df['counts'].notnull()) & (df['name'].notnull())
+                ]['counts']
+            )
+            matching_sequences = round(total_counts_matching_starting_seqs / total_counts, 3)
+
+            # Add counts metadata
+            counts_metadata_dict['protease_type'].append(protease)
+            counts_metadata_dict['selection_strength'].append(selection_index)
+            counts_metadata_dict['input'].append('{0}.counts'.format(protease))
+            counts_metadata_dict['column'].append('counts{0}'.format(selection_index))
+            counts_metadata_dict['matching_sequences'].append(matching_sequences)
+            
+        # Write the aggregated counts to an output file, only including sequences with
+        # starting counts in the naive library (`counts0`) that are greater than a
+        # cutoff (`counts_cutoff`) that is currently set to zero
+        counts_cutoff = 0
+        aggregate_df.set_index('name', inplace=True)
+        columns_to_write = [
+            'counts{0}'.format(selection_index)
+            for selection_index in selection_indices
+        ]
+        aggregate_df[
+            aggregate_df['counts0']>counts_cutoff
+        ][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
+
+    # Make a dataframe indexed in the same way as the `experiments.csv` file by merging
+    # the counts metadata with the input file with metadata
+    counts_metadata_df = pandas.DataFrame.from_dict(counts_metadata_dict)
+    counts_metadata_df.set_index(['protease_type', 'selection_strength'], inplace=True)
+    summary_df.dropna(how='all', inplace=True)
+    summary_df.set_index(['protease_type', 'selection_strength'], inplace=True)
+    assert(
+        sorted(list(counts_metadata_df.index.values)) == \
+            sorted(list(summary_df.index.values))
+    ), "Error in processing the sample-specific metadata"
+    summary_df = summary_df.merge(
+        counts_metadata_df, left_index=True, right_index=True, how="outer"
+    )
+    summary_df.reset_index(inplace=True)
+    experiments_column_order = [
+        'input', 'column', 'parent', 'selection_strength', 'conc_factor', 'parent_expression',
+        'fraction_collected', 'matching_sequences', 'cells_collected'
+    ]
+    output_experiments_file = os.path.join(ec50s_dir, 'experiments.csv')
+    summary_df[experiments_column_order].to_csv(output_experiments_file, index=False)
+
     
     #---------------------------------------------------------------
     # Compute EC50 values from the deep-sequencing counts
     #---------------------------------------------------------------
-    
     
     
     #---------------------------------------------------------------
