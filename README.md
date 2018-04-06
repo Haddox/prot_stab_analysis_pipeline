@@ -18,7 +18,7 @@ The pipeline is in the form of a series of `Python` scripts that are contained i
     * `selection_strength` : the index of the selection step associated with the sample, following the indexing scheme used in the Rocklin et al. study. The standard range of these values is normally: 0-6, where "0" corresponds to the naive library that has not been exposed to protease and "6" corresponds to the library that has been challenged with the highest concentration of protease.
     * `conc_factor` : the fold-change in protease concentration between selection steps, i.e., when `selection_strength` is incrimented by a value of one. A value of 3 would indicate that the protease concentration is increased by 3 fold between selection steps.
     * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the 
-    * `fastq_id` : a string that is common to all FASTQ files for a given sample ***and*** unique to those samples. The code will search within the directory specified by `--fastq_dir` for all FASTQ files that contain this string in their name, aggregating the data among all matches. Thus, strings that are not unique to a particular dataset will result in "cross contamination" between datasets. Be careful when using numbers. For instance, the string "test1" would find not only FASTQ files with "test1" in their name, but also FASTQ files with "test10" in their name. Using a string like "test1\_" could be used to get around this problem.
+    * `fastq_id` : a string that is common to all FASTQ files for a given sample ***and*** is unique to those files. The code will search within the directory specified by `--fastq_dir` for all FASTQ files that contain this string in their name, aggregating the data among all matches. Thus, strings that are not unique to a particular dataset will result in "cross contamination" between datasets. Be careful when using numbers. For instance, the string "test1" would find not only FASTQ files with "test1" in their name, but also FASTQ files with "test10" in their name. Using a string like "test1\_" could be used to get around this problem.
     * `parent_expression`: the fraction of cells (events) passing the selection threshold in the given library before proteolysis, according to the sorting instrument.
     * `fraction_collected`: the fraction of cells (events) passing the selection threshold in the given library after proteolysis, according to the sorting instrument
     * `cells_collected`: the total number of cells (events) collected during the given selection, according to the sorting instrument
@@ -62,7 +62,17 @@ I test that the results of my pipeline match the results from the Rocklin et al.
 
 ## Summary of `Python` scripts in the pipeline
 
-All of these scripts are in the `scripts/` directory.
+All of the code for the pipeline is in the directory called `scripts/`. Here are descriptions of each of the scripts in the directory.
+
+* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis. The below scripts are all dependencies for this script.
+* `deep_seq_utils.py`: a custom script with `Python` functions for analyzing deep-sequencing data.
+* `fit_all_ec50_data.py`: a script from Rocklin et al. that is used to fit EC50 values.
+* `protease_sequencing_model.py` and `utility.py`: are both scripts from Rocklin et al. that are imported as modules for computing EC50 values.
+* 
+
+
+
+
 
 ### `compute_ec50_values_from_deep_sequencing_data.py`
 
