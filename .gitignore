@@ -3,6 +3,10 @@ results/
 
 ### __pycache__ files ###
 */__pycache__
+**/__pycache__/
+
+### `.pyc` files ###
+**/.pyc
 
 ### JupyterNotebook ###
 .ipynb_checkpoints*

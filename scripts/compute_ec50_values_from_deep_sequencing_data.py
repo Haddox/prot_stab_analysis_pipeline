@@ -10,13 +10,10 @@ import glob
 import subprocess
 from multiprocessing import Pool
 import time
-
 import pandas
 
-# Import custom `Python` modules
+# Custom `Python` modules
 import deep_seq_utils
-
-
 
 # Run the main code
 def main():
@@ -278,7 +275,7 @@ def main():
     output_experiments_file = os.path.join(ec50s_dir, 'experiments.csv')
     summary_df[experiments_column_order].to_csv(output_experiments_file, index=False)
 
-    
+
     #---------------------------------------------------------------
     # Compute EC50 values from the deep-sequencing counts
     #---------------------------------------------------------------
@@ -294,8 +291,7 @@ def main():
                 'cp',
                 os.path.join(counts_dir, '{0}.counts'.format(protease)),
                 copied_counts_file
-            ])
-    
+            ])    
     
     # Next, compute EC50 values using the script `fit_all_ec50_data.py`
     scriptsdir = os.path.dirname(__file__)
@@ -304,10 +300,13 @@ def main():
         print("EC50 values already exist")
     else:
         print("Computing EC50 values")
-        process = subprocess.Popen(
-            ['python2', '{0}/fit_all_ec50_data.py'.format(scriptsdir)],
-            stdout=subprocess.PIPE
-        )
+        cmd = [
+            'python',
+            '{0}/fit_all_ec50_data.py'.format(scriptsdir)
+            '--datasets {0}'.format(','.join(proteases)),
+            '--output_dir {0}'.format(ec50s_dir)
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         out, err = process.communicate()
         with open(ec50_logfile, 'w') as f:
             out = out.decode("utf-8")

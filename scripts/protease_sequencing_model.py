@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from __future__ import division
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -61,8 +61,8 @@ class SelectionResponseFn(object):
 		return []
 
 	def selection_mass(self, **kwargs):
-		if any(isinstance(v, (T.TensorVariable, T.TensorConstant)) for v in kwargs.values()):
-			kwargs = { k : T.as_tensor_variable(v) for k, v in kwargs.items() }
+		if any(isinstance(v, (T.TensorVariable, T.TensorConstant)) for v in list(kwargs.values())):
+			kwargs = { k : T.as_tensor_variable(v) for k, v in list(kwargs.items()) }
 			return self.selection_mass_impl(num=T, **kwargs)
 		else:
 			return self.selection_mass_impl(num=numpy, **kwargs)
@@ -173,7 +173,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			if parent not in pop_specs:
 				raise ValueError(
 					"Invalid parent specified: %s pop_specs: %s" %
-					(parent, pop_specs.keys()))
+					(parent, list(pop_specs.keys())))
 			cur_depth += 1
 			key = parent
 
@@ -182,7 +182,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 	def generate_data(self, pop_specs, sel_k, sel_ec50, init_pop):
 		populations = {}
 
-		for pkey in sorted(pop_specs.keys(), key=lambda pkey: self.parent_depth(pkey, pop_specs)):
+		for pkey in sorted(list(pop_specs.keys()), key=lambda pkey: self.parent_depth(pkey, pop_specs)):
 			p = pop_specs[pkey]
 			if p["parent"] is None:
 				start_pop = init_pop
@@ -227,7 +227,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		return var
 
 	def build_model(self, population_data):
-		for k, p in population_data.items():
+		for k, p in list(population_data.items()):
 			unused_keys = set(p.keys()).difference(
 				["P_sel", "Frac_sel_pop", "selection_level", "parent"] +
 				list(self.response_impl.population_params)
@@ -235,15 +235,15 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			if unused_keys:
 				logger.warning("Unused keys in population_data[%r] : %s", k, unused_keys)
 
-		num_members = set( len(p["P_sel"]) for p in population_data.values() )
+		num_members = set( len(p["P_sel"]) for p in list(population_data.values()) )
 		assert len(num_members) == 1, "Different observed population memberships: %s" % num_members
 		self.num_members = num_members.pop()
 		selected_observations = {
 			v["selection_level"] : v["P_sel"]
-			for v in population_data.values() if v["selection_level"] is not None
+			for v in list(population_data.values()) if v["selection_level"] is not None
 		}
 
-		start_ec50 = numpy.full_like(selected_observations.values()[0], min(selected_observations) - 1)
+		start_ec50 = numpy.full_like(list(selected_observations.values())[0], min(selected_observations) - 1)
 		for sl in selected_observations:
 			start_ec50[ ((sl - 1) > start_ec50) & (selected_observations[sl] > 0) ] = sl - 1
 
@@ -256,7 +256,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		self.population_data = population_data
 
 		pops_by_depth = sorted(
-			population_data.keys(),
+			list(population_data.keys()),
 			key=lambda pkey: self.parent_depth(pkey, population_data))
 		self.modeled_populations = [ p for p in pops_by_depth if population_data[p]["parent"] is not None ]
 
@@ -273,7 +273,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 			sel_values = set(
 				float(p["selection_level"])
-				for p in self.population_data.values()
+				for p in list(self.population_data.values())
 				if p["selection_level"] is not None
 			)
 			sel_mag = max(sel_values) - min(sel_values)
@@ -378,7 +378,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					"n_sel" : self._function(total_selected),
 				}
 
-		self.fit_params = { k : self._function(v) for k, v in self.fit_params.items() }
+		self.fit_params = { k : self._function(v) for k, v in list(self.fit_params.items()) }
 		self.logp = self._function(self.model.logpt)
 
 		return self
@@ -392,7 +392,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					start[k] = self.model.test_point[k]
 		MAP = pymc3.find_MAP(start=start, model=self.model, fmin=scipy.optimize.fmin_l_bfgs_b)
 
-		return { k : v(MAP) for k, v in self.fit_params.items() }
+		return { k : v(MAP) for k, v in list(self.fit_params.items()) }
 
 	def opt_ec50_cred_outliers(self, src_params):
 		logger.info("scan_ec50_outliers: %i members", self.num_members)
@@ -442,7 +442,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			min_selection_rate = 0
 
 		if self.min_selection_mass:
-			if isinstance(self.min_selection_mass, basestring):
+			if isinstance(self.min_selection_mass, str):
 				min_selection_mass = base_params["min_selection_mass"]
 			else:
 				min_selection_mass = self.min_selection_mass
@@ -551,7 +551,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		ax.plot( ec50_cred["xs"], ec50_cred["cdf"], label="cdf" )
 		ax.axvline(ec50_cred["sel_ec50"], alpha=.5, label="sel_e50: %.2f" % ec50_cred["sel_ec50"])
 
-		for ci, (cl, cu) in ec50_cred["cred_intervals"].items():
+		for ci, (cl, cu) in list(ec50_cred["cred_intervals"].items()):
 			ax.axvspan(cl, cu, color="red", alpha=.2, label="%.2f cred" % ci)
 
 	def model_selection_summary(self, params):
@@ -576,14 +576,14 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 		sel_levels = {
 			k : p["selection_level"] if p["selection_level"] else 0
-			for k, p in model.population_data.items()}
+			for k, p in list(model.population_data.items())}
 
 		sel_fracs = {
 			k : p["P_sel"][i] / p["P_sel"].sum()
-			for k, p in model.population_data.items()}
+			for k, p in list(model.population_data.items())}
 
 		pylab.xticks(
-			sel_levels.values(), sel_levels.keys())
+			list(sel_levels.values()), list(sel_levels.keys()))
 		pylab.xlim((-1, 7))
 
 #		porder = [
@@ -641,7 +641,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 	def model_outlier_summary(self, params):
 		selection_summary = self.model_selection_summary(params)
 
-		for v in selection_summary.values():
+		for v in list(selection_summary.values()):
 			logpmf = scipy.stats.binom.logpmf(
 				v["P_sel"],
 				n=v["P_sel"].sum(),
@@ -662,7 +662,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 	def to_transformed(self, val_dict):
 		r = {}
-		for n, val in val_dict.items():
+		for n, val in list(val_dict.items()):
 			if n in self.to_trans:
 				k, f = self.to_trans[n]
 				r[k] = f(val)

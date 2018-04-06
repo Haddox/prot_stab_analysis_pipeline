@@ -26,7 +26,7 @@ Outputs:
     of the module.
 """
 
-from __future__ import division
+
 import pandas as pd
 import numpy as np
 import pickle
@@ -44,8 +44,11 @@ __all__ = ["model_input"]
 # Hard-coded input paths to a directory with counts files derived from the
 # deep-sequencing data and a file called `experiments.csv`
 basedir = path.dirname(__file__)
+experiments_csv_dir = os.path.join(
+    basedir, '../../results/ec50_values/'
+)
 countsdir = os.path.join(
-    basedir, '../results/ec50s_dir/'
+    basedir, '../../results/counts/'
 )
 
 # Start compiling the data
@@ -65,7 +68,7 @@ def fix_num_selected(x):
     return x
 
 # Read in the `experiments.csv` file
-summary=pd.read_csv(path.join(countsdir, 'experiments.csv'))
+summary=pd.read_csv(path.join(experiments_csv_dir, 'experiments.csv'))
 summary=summary.dropna(how='all')
 summary=summary.fillna('-')
 summary=summary.where( summary != '-', None)
@@ -144,7 +147,7 @@ for exper in model_input:
         model_input[exper][i]['seq_counts'] = counts_df[col].astype(np.int)
 
     # Iterate through each selection level compute `P_sel`
-    for k, v in model_input[exper].items():
+    for k, v in list(model_input[exper].items()):
         # If the total number of sequencing counts is greater than the total
         # number of cells collected (specifically, the number of cells expected
         # to have designs that actually match one of the input designs), then

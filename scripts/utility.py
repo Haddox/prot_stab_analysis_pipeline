@@ -14,7 +14,7 @@ def _all_subclasses(klass):
     ]
 
 def resolve_subclass(baseclass, subclass):
-    if isinstance(subclass, basestring):
+    if isinstance(subclass, str):
         subclasses = _all_subclasses(baseclass)
         subclass_matches = [
             sc for sc in subclasses
