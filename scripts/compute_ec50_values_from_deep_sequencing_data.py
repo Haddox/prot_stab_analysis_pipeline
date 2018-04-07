@@ -111,7 +111,7 @@ def main():
             logfile = '{0}.log'.format(outfile_prefix)
             paired_FASTQ_output_file = '{0}.assembled.fastq'.format(outfile_prefix)
             FASTQ_files[experiment_name].append(paired_FASTQ_output_file)
-            print("\nWill assemble the files {0} and {1}, outputting the assembled reads to a file called {2}".format(
+            print("\nPreparing to assemble the files {0} and {1}, outputting the assembled reads to a file called {2}".format(
                 r1_file, r2_file, paired_FASTQ_output_file
             ))
             
@@ -146,6 +146,7 @@ def main():
     # For each sample, compute protein-level counts from the deep-sequencing data. Write
     # a file giving all observed counts, even for proteins that don't match a starting
     # design.
+    print("\nComputing protein counts from the deep-sequencing data")
     input_data_for_computing_counts = []
     for experiment_name in FASTQ_files:
         fastq_files = FASTQ_files[experiment_name]
@@ -278,45 +279,39 @@ def main():
 
     #---------------------------------------------------------------
     # Compute EC50 values from the deep-sequencing counts
-    #---------------------------------------------------------------
-    # The code for computing EC50s requires that the `experiments.csv` file and the
-    # appropriate counts files are all in the same directory where the results will
-    # be stored. The `experiments.csv` file is already there. I will copy over the
-    # the appropriate files (in the future, a symbolic link would be better, but
-    # I had diffiulty troubleshooting this).
-    for protease in proteases:
-        copied_counts_file = os.path.join(ec50s_dir, '{0}.counts'.format(protease))
-        if not os.path.isfile(copied_counts_file):
-            subprocess.check_call([
-                'cp',
-                os.path.join(counts_dir, '{0}.counts'.format(protease)),
-                copied_counts_file
-            ])    
-    
+    #---------------------------------------------------------------    
     # Next, compute EC50 values using the script `fit_all_ec50_data.py`
     scriptsdir = os.path.dirname(__file__)
     ec50_logfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.log')
+    ec50_errfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.err')
     if os.path.isfile(ec50_logfile):
-        print("EC50 values already exist")
+        print("EC50 values already exist. To rerun the computation, remove the logfile called: {0}".format(ec50_logfile))
     else:
-        print("Computing EC50 values")
         cmd = [
             'python',
-            '{0}/fit_all_ec50_data.py'.format(scriptsdir)
-            '--datasets {0}'.format(','.join(proteases)),
-            '--output_dir {0}'.format(ec50s_dir)
+            '{0}/fit_all_ec50_data.py'.format(scriptsdir),
+            '--datasets', (','.join(proteases)),
+            '--output_dir', ec50s_dir
         ]
+        print("Computing EC50 values with the command: {0}".format(
+            ' '.join(cmd)
+        ))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         out, err = process.communicate()
         with open(ec50_logfile, 'w') as f:
             out = out.decode("utf-8")
             f.write(out)
+        if err:
+            with open(ec50_errfile, 'w') as f:
+                err = err.decode("utf-8")
+                f.write(err)
+    
     
     #---------------------------------------------------------------
     # Compute stability scores from the EC50 values
     #---------------------------------------------------------------
     
-    
+    # Still need to add code for this section
 
 if __name__ == "__main__":
     main()

@@ -6,19 +6,19 @@ This directory contains a computational pipeline for analyzing data from the hig
 
 Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file. Detailed instructions for doing so are described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html).
 
-However, there is one dependency (`pymc3`) that does not yet work when I install it in the environment via `Conda`. Using a `Conda`-installed version of this module in the environment gives rise to an error message. I will try to troubleshoot this soon. But, in the meantime, I found that a viable workaround has been to install `pymc3` in my root directory, instead of in the `Conda` environment.
+However, there is one dependency (`pymc3`) that does not yet work when I install it in the environment via `Conda`. Using a `Conda`-installed version of this module in the environment gives rise to an error message. I will try to troubleshoot this soon. But, in the meantime, I found that a viable workaround is to install `pymc3` in my root directory, instead of in the `Conda` environment.
 
 In the end, the way I got everything to work is to do the following steps in sequencential order:
 
 * First, *outside* of the `Conda` environment, install `pymc3` and other modules listed in the file `requirements.txt` using the command:
-    
-    ```pip install -r requirements.txt```
 
+    pip install -r requirements.txt
+    
 * Next, use `Conda` to install all other modules from the [`environment.yml`](environment.yml) file, as described above. By default, `pymc3` was not reinstalled in the environment since it already exists externally.
 
 Ultimately, these steps should provide all necessary external dependencies. To run the pipeline, the `Conda` environment first needs to be activated using the command:
 
-    ```source activate myenv```
+    source activate myenv
     
 where `myenv` should be replaced with the name of the `Conda` environment you created above.
 
@@ -26,15 +26,13 @@ where `myenv` should be replaced with the name of the `Conda` environment you cr
 
 The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py`. If you are using a `Conda` environment (see above), you must first activate it using the command:
 
-    ```source activate myenv```
+    source activate myenv
     
 where `myenv` should be replaced with the name of the `Conda` environment you created above. Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
 
-    ```
-    python compute_ec50_values_from_deep_sequencing_data.py [-h] [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--output_dir OUTPUT_DIR]
-    ```
+    python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--output_dir OUTPUT_DIR]
 
-* `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following columns:
+* `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following comma-delimited columns:
     * `name` : a unique name for the design
     * `protein_sequence` : the protein sequence of the design
 
@@ -72,7 +70,7 @@ All results are stored in the directory specified by the input command `--output
 * `ec50_values/` : this directory contains a varity of output files, including:
     * `experiments.csv` : a file that serves as input into the script for computing EC50 values. This file is identical to the `experiments.csv` file described in the Rocklin et al. study.
     * for each protease, a file giving the aggregated counts across all samples that are associated with that protase. These files are the same as the ones in `counts/`, copied over for the purpose of inferring EC50s (the current script for inferring EC50s requires that all input is in the same directory; this should be changed in the future).
-    * for each protease, a file giving the EC50 values and other metadata called `{protease}.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput`. This file is in the same form as the `.fulloutput` files from the Rocklin et al. study. See [here](data/original_Rocklin_EC50_values/rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput) for an example.
+    * for each protease, a file called `{protease}.fulloutput` giving the EC50 values and other metadata in tab-delimited columns. These files are similar to the `.fulloutput` files from the Rocklin et al. study. See [here](data/original_Rocklin_EC50_values/rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput) for an example.
 
 
 ## An example analysis
@@ -80,77 +78,51 @@ All results are stored in the directory specified by the input command `--output
 I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`analysis_code.ipynb`](analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
 
 After executing the analysis, I test that the results of the pipeline match the original results from the Rocklin et al. study. To do so, I downloaded the following files from the paper's supplemental info and uploaded them in the following location in this repository:
-    * for each protease, I uploaded a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
-    * for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
+
+* for each protease, I uploaded a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
+* for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
 
 
 ## To do
 
 * Set up a system for logging progress of the script
+* Change the releative path in the `__init__.py` file used to import the counts and FACS data
+* Figure out how to implement the unfolded-state model and compute EC50 values
 * Set up a `conda` environment that is completely self contained
     * currently, there is a problem with importing `pymc3` as installed by `conda`
-* Make it so that don't need to copy over counts
+* Ask Gabe if he included samples with zero counts in the naive sample.
 
 
 ## Summary of `Python` scripts in the pipeline
 
-All of the code for the pipeline is in the directory called `scripts/`. Here are descriptions of each of the scripts in the directory.
+All of the code for the pipeline is in the directory called `scripts/`. This includes scripts that perform the analyses, as well as scripts with functions that are imported as modules.
 
-* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis. All inputs and outputs of this script are described above in the section called "How to run the pipeline". The below scripts are all dependencies for this script.
-* `deep_seq_utils.py`: a custom script with `Python` functions for analyzing deep-sequencing data.
-* `fit_all_ec50_data.py`: a script from Rocklin et al. that is used to fit EC50 values.
-* `protease_sequencing_model.py` and `utility.py`: are both scripts from Rocklin et al. that are imported as modules for computing EC50 values.
-* `
+Here is a list of the scripts that perform the analysis:
 
+* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis.
+    * Inputs:
+        * all inputs are described above in the section called "How to run the pipeline"
+    * Dependencies:
+        * all scripts in the `scripts/` directory, described below
+    * Outputs:
+        * all outputs are described above in the section called "How to run the pipeline"
 
+* `fit_all_ec50_data.py`: a script from Rocklin et al. that is used to fit EC50 values. I call this script for this purpose in `compute_ec50_values_from_deep_sequencing_data.py`.
+    * Inputs:
+        
+        python fit_all_ec50_data.py [--datasets DATASETS] [--output_dir OUTPUT_DIR]
+        
+        * `--datasets`: a list of datasets to analyze. These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
+        * `--output_dir`: a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.
 
+    * Dependencies:
+        * the modules called `protease_sequencing_model.py`, `utility.py`, and `compile_counts_and_FACS_data/__init__.py`, which are described below
+        
+    * Outputs:
+        * all files in the `ec50_values/` results directory described above, except for the `experiments.csv` file
 
+Here are a list of scripts that are imported as modules in the computational pipeline:
 
-### `compute_ec50_values_from_deep_sequencing_data.py`
-
-Compute EC50 values from deep-sequencing data. This module serves as a wrapper for the modules listed below.
-
-* Outputs:
-    * Assembled FASTQ files for each sample
-    * Counts files for each sample, one giving all counts of all proteins, the other only giving counts for the input designs
-    * EC50 values for each sample
-
-### `assemble_and_align_reads.py`
-
-Assemble paired-end deep-sequencing reads in the form of FASTQ files and then align the reads to a set of input sequences
-
-* Inputs:
-    * deep-sequencing data
-    * a file giving the DNA and protein sequence for each input design for a given round of designs
-    * a path to an output directory where the results will be stored
-
-* Dependencies:
-    * `PEAR`
-    * `deep_seq_utils.py`: a custom `Python` script
-
-* Outputs:
-    * assembled paired-end reads in the form of FASTQ files for each sample
-    * counts files with the number of times each protein was observed in each sample:
-        * one file with counts for *all* sequences that were observed, even if they do not match a starting design
-        * one file with counts for *only* sequences that match a starting design
-
-### `summarize_alignments.py`
-
-Make plots summarizing the alignments, including plots showing:
-    * sequencing depth
-    * number of sequences thrown out during the alignment
-    * etc.
-
-### `compute_ec50_values.py`
-
-Compute ec50 values for a given experiment
-
-* Inputs:
-    * `experiments.csv` file
-
-* Dependencies:
-    * scripts from Rocklin et al., 2017, Science
-    * `Python` modules
-
-* Output:
-    * EC50 values
+* `deep_seq_utils.py`: a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.
+* `protease_sequencing_model.py` and `utility.py`: are both scripts from Rocklin et al. that are imported in `fit_all_ec50_data.py` as modules for computing EC50 values.
+* `compile_counts_and_FACS_data/__init__.py`: this script compiles and returns deep-sequencing counts and FACS data in dictionary form when its the directory it resides in is imported, as is done in `fit_all_ec50_data.py` for computing EC50 values from using these data as input. In the future
