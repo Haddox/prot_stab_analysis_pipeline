@@ -1,10 +1,38 @@
 # Computational pipeline for analyzing data from the high-throughput protein-stability assay
 
-This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693).
+This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper.
+
+## External dependencies
+
+Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file. Detailed instructions for doing so are described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html).
+
+However, there is one dependency (`pymc3`) that does not yet work when I install it in the environment via `Conda`. Using a `Conda`-installed version of this module in the environment gives rise to an error message. I will try to troubleshoot this soon. But, in the meantime, I found that a viable workaround has been to install `pymc3` in my root directory, instead of in the `Conda` environment.
+
+In the end, the way I got everything to work is to do the following steps in sequencential order:
+
+* First, *outside* of the `Conda` environment, install `pymc3` and other modules listed in the file `requirements.txt` using the command:
+    
+    ```pip install -r requirements.txt```
+
+* Next, use `Conda` to install all other modules from the [`environment.yml`](environment.yml) file, as described above. By default, `pymc3` was not reinstalled in the environment since it already exists externally.
+
+Ultimately, these steps should provide all necessary external dependencies. To run the pipeline, the `Conda` environment first needs to be activated using the command:
+
+    ```source activate myenv```
+    
+where `myenv` should be replaced with the name of the `Conda` environment you created above.
 
 ## How to run the pipeline
 
-The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, which are described below:
+The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py`. If you are using a `Conda` environment (see above), you must first activate it using the command:
+
+    ```source activate myenv```
+    
+where `myenv` should be replaced with the name of the `Conda` environment you created above. Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
+
+    ```
+    python compute_ec50_values_from_deep_sequencing_data.py [-h] [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--output_dir OUTPUT_DIR]
+    ```
 
 * `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following columns:
     * `name` : a unique name for the design
@@ -49,11 +77,11 @@ All results are stored in the directory specified by the input command `--output
 
 ## An example analysis
 
-I provide an example of how to execute this pipeline in the `Jupyter` notebook called `analysis_code.ipynb`. In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
+I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`analysis_code.ipynb`](analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
 
-I test that the results of my pipeline match the results from the Rocklin et al. study. Specifically, I have uploaded the following original data from the supplemental information of the Rocklin et al. study:
-    * for each protease, a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
-    * for each protease, a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
+After executing the analysis, I test that the results of the pipeline match the original results from the Rocklin et al. study. To do so, I downloaded the following files from the paper's supplemental info and uploaded them in the following location in this repository:
+    * for each protease, I uploaded a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
+    * for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
 
 
 ## To do
@@ -68,11 +96,11 @@ I test that the results of my pipeline match the results from the Rocklin et al.
 
 All of the code for the pipeline is in the directory called `scripts/`. Here are descriptions of each of the scripts in the directory.
 
-* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis. The below scripts are all dependencies for this script.
+* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis. All inputs and outputs of this script are described above in the section called "How to run the pipeline". The below scripts are all dependencies for this script.
 * `deep_seq_utils.py`: a custom script with `Python` functions for analyzing deep-sequencing data.
 * `fit_all_ec50_data.py`: a script from Rocklin et al. that is used to fit EC50 values.
 * `protease_sequencing_model.py` and `utility.py`: are both scripts from Rocklin et al. that are imported as modules for computing EC50 values.
-* 
+* `
 
 
 
