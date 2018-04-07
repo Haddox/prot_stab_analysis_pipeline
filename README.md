@@ -2,7 +2,8 @@
 
 This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper.
 
-## External dependencies
+
+## Installing external dependencies
 
 Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file. Detailed instructions for doing so are described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html).
 
@@ -12,7 +13,7 @@ In the end, the way I got everything to work is to do the following steps in seq
 
 * First, *outside* of the `Conda` environment, install `pymc3` and other modules listed in the file `requirements.txt` using the command:
 
-    pip install -r requirements.txt
+    ```pip install -r requirements.txt```
     
 * Next, use `Conda` to install all other modules from the [`environment.yml`](environment.yml) file, as described above. By default, `pymc3` was not reinstalled in the environment since it already exists externally.
 
@@ -21,6 +22,7 @@ Ultimately, these steps should provide all necessary external dependencies. To r
     source activate myenv
     
 where `myenv` should be replaced with the name of the `Conda` environment you created above.
+
 
 ## How to run the pipeline
 
@@ -38,7 +40,7 @@ where `myenv` should be replaced with the name of the `Conda` environment you cr
 
 * `--fastq_dir` : a path to a directory that has the deep-sequencing data in the form of unassembled paired-end FASTQ files for all samples in the experiment.
 
-* `--experimental_summary_file` : the path to a CSV file with a variety of metadata for each sample in the experiment, where samples are rows and columns are different pieces of metadata. See [here](data/Rocklin_2017_Science/experimental_summary.csv) for an example. This file is based on the `experiments.csv` file from the Rocklin et al. study, but contains come additional columns, and is also missing certain columns that will be added in later by the analysis code. The columns must include:
+* `--experimental_summary_file` : the path to a CSV file with a variety of metadata for each sample in the experiment, where samples are rows and columns are different pieces of metadata. See [here](data/Rocklin_2017_Science/experimental_summary.csv) for an example. This file is based on the `experiments.csv` file from the Rocklin et al. study, but contains come additional columns, and is also missing certain columns that will be added in later by the analysis code. The columns must be comma-delimited and must include:
     * `experiment_id` : a unique ID for the entire experiment (**need to decide if I want to use this somehow**)
     * `protease_type` : the protease associated with the sample (e.g., "trypsin" or "chymotrypsin")
     * `selection_strength` : the index of the selection step associated with the sample, following the indexing scheme used in the Rocklin et al. study. The standard range of these values is normally: 0-6, where "0" corresponds to the naive library that has not been exposed to protease and "6" corresponds to the library that has been challenged with the highest concentration of protease.
@@ -83,46 +85,53 @@ After executing the analysis, I test that the results of the pipeline match the 
 * for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
 
 
-## To do
-
-* Set up a system for logging progress of the script
-* Change the releative path in the `__init__.py` file used to import the counts and FACS data
-* Figure out how to implement the unfolded-state model and compute EC50 values
-* Set up a `conda` environment that is completely self contained
-    * currently, there is a problem with importing `pymc3` as installed by `conda`
-* Ask Gabe if he included samples with zero counts in the naive sample.
-
-
 ## Summary of `Python` scripts in the pipeline
 
 All of the code for the pipeline is in the directory called `scripts/`. This includes scripts that perform the analyses, as well as scripts with functions that are imported as modules.
 
-Here is a list of the scripts that perform the analysis:
+### `compute_ec50_values_from_deep_sequencing_data.py`:
+This is the main script that performs the entire analysis.
+* Inputs:
+    * all inputs are described above in the section called "How to run the pipeline"
+* Dependencies:
+    * all scripts in the `scripts/` directory, described below
+* Outputs:
+    * all outputs are described above in the section called "How to run the pipeline"
 
-* `compute_ec50_values_from_deep_sequencing_data.py`: the main script that performs the entire analysis.
-    * Inputs:
-        * all inputs are described above in the section called "How to run the pipeline"
-    * Dependencies:
-        * all scripts in the `scripts/` directory, described below
-    * Outputs:
-        * all outputs are described above in the section called "How to run the pipeline"
-
-* `fit_all_ec50_data.py`: a script from Rocklin et al. that is used to fit EC50 values. I call this script for this purpose in `compute_ec50_values_from_deep_sequencing_data.py`.
-    * Inputs:
+### `fit_all_ec50_data.py`
+This is a script from Rocklin et al. that is used to fit EC50 values. I call this script for this purpose in `compute_ec50_values_from_deep_sequencing_data.py`.
+* Inputs:
         
-        python fit_all_ec50_data.py [--datasets DATASETS] [--output_dir OUTPUT_DIR]
+    ```python fit_all_ec50_data.py [--datasets DATASETS] [--output_dir OUTPUT_DIR]```
         
-        * `--datasets`: a list of datasets to analyze. These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
-        * `--output_dir`: a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.
+    * `--counts_dir`: a path to the directory with the input counts files giving counts for a single protease across all selection levels (e.g., you might have one counts file for trypsin and one for chymotrypsin). Counts files must be structured such that rows are proteins, and columns (space-delimited) with the following names/info:
+    * `name`: the name of the given protein
+    * `counts{selection_index_0}`: the counts for a given protein at the first selection index in the experiment (e.g., this might be set to `counts0` for the counts in the naive library).
+    * `counts{selection_index_1}`: the counts for a given protein at the second selection index in the experiment.
+    * ... include a column for every selection index in the experiment (e.g., the Rocklin et al. study had columns for selection indices 0-6).
+    * `--experimental_summary_file`: the path to an input file that follows the exact same format as the `experiments.csv` file from the Rocklin et al. study. This file has the exact same information as the `--experimental_summary_file` input file `compute_ec50_values_from_deep_sequencing_data.py`, but does not have the columns called `experiment_id` and `fastq_id`, and has additional columns called:
+    * `input`: the name of the counts file with counts for a given sample, excluding the prefix provided in `--counts_dir` (e.g., "trypsin.counts" might have counts for all samples challenged with trypsin)
+    * `column`: the name of the the column in the counts file that corresponds to the selection level of a given sample (e.g., "counts1" would correspond to the first selection level).
+    * `--datasets`: a list of datasets to analyze. These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
+    * `--output_dir`: a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.
 
-    * Dependencies:
-        * the modules called `protease_sequencing_model.py`, `utility.py`, and `compile_counts_and_FACS_data/__init__.py`, which are described below
+* Dependencies:
+    * the modules called `protease_sequencing_model.py`, `utility.py`, and `compile_counts_and_FACS_data/__init__.py`, which are described below
         
-    * Outputs:
-        * all files in the `ec50_values/` results directory described above, except for the `experiments.csv` file
+* Outputs:
+    * all files in the `ec50_values/` results directory described above, except for the `experiments.csv` file
 
-Here are a list of scripts that are imported as modules in the computational pipeline:
+### `deep_seq_utils.py`
+This is a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.
 
-* `deep_seq_utils.py`: a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.
-* `protease_sequencing_model.py` and `utility.py`: are both scripts from Rocklin et al. that are imported in `fit_all_ec50_data.py` as modules for computing EC50 values.
-* `compile_counts_and_FACS_data/__init__.py`: this script compiles and returns deep-sequencing counts and FACS data in dictionary form when its the directory it resides in is imported, as is done in `fit_all_ec50_data.py` for computing EC50 values from using these data as input. In the future
+### `protease_sequencing_model.py` and `utility.py`
+These are both scripts from Rocklin et al. that are imported in `fit_all_ec50_data.py` as modules for computing EC50 values.
+
+
+## To do
+
+* Set up a system for logging progress of the script
+* Figure out how to implement the unfolded-state model and compute EC50 values
+* Set up a `conda` environment that is completely self contained
+    * currently, there is a problem with importing `pymc3` as installed by `conda`
+* Ask Gabe if he included samples with zero counts in the naive sample.
