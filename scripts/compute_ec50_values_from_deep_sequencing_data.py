@@ -166,7 +166,7 @@ def main():
         all_out = myPool.map_async(deep_seq_utils.ComputeCounts, input_data_for_computing_counts)
         while not all_out.ready():
             print("%s tasks remaining after %s seconds." % (str(all_out._number_left), round(time.time() - start, 0)))
-            time.sleep(600.0)
+            time.sleep(300.0)
         print("Finished %s processes in %s seconds!" % (n_procs, round(time.time() - start, 2)))
 
         
@@ -290,6 +290,8 @@ def main():
         cmd = [
             'python',
             '{0}/fit_all_ec50_data.py'.format(scriptsdir),
+            '--counts_dir', counts_dir,
+            '--experimental_summary_file', output_experiments_file,
             '--datasets', (','.join(proteases)),
             '--output_dir', ec50s_dir
         ]

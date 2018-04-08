@@ -75,7 +75,7 @@ All results are stored in the directory specified by the input command `--output
     * for each protease, a file called `{protease}.fulloutput` giving the EC50 values and other metadata in tab-delimited columns. These files are similar to the `.fulloutput` files from the Rocklin et al. study. See [here](data/original_Rocklin_EC50_values/rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput) for an example.
 
 
-## An example analysis
+## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
 
 I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`analysis_code.ipynb`](analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
 
@@ -100,18 +100,19 @@ This is the main script that performs the entire analysis.
 
 ### `fit_all_ec50_data.py`
 This is a script from Rocklin et al. that is used to fit EC50 values. I call this script for this purpose in `compute_ec50_values_from_deep_sequencing_data.py`.
+
 * Inputs:
-        
-    ```python fit_all_ec50_data.py [--datasets DATASETS] [--output_dir OUTPUT_DIR]```
-        
+
+    ```python fit_all_ec50_data.py [--counts_dir COUNTS_DIR] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--datasets DATASETS] [--output_dir OUTPUT_DIR]```
+
     * `--counts_dir`: a path to the directory with the input counts files giving counts for a single protease across all selection levels (e.g., you might have one counts file for trypsin and one for chymotrypsin). Counts files must be structured such that rows are proteins, and columns (space-delimited) with the following names/info:
-    * `name`: the name of the given protein
-    * `counts{selection_index_0}`: the counts for a given protein at the first selection index in the experiment (e.g., this might be set to `counts0` for the counts in the naive library).
-    * `counts{selection_index_1}`: the counts for a given protein at the second selection index in the experiment.
-    * ... include a column for every selection index in the experiment (e.g., the Rocklin et al. study had columns for selection indices 0-6).
+        * `name`: the name of the given protein
+        * `counts{selection_index_0}`: the counts for a given protein at the first selection index in the experiment (e.g., this might be set to `counts0` for the counts in the naive library).
+        * `counts{selection_index_1}`: the counts for a given protein at the second selection index in the experiment.
+        * ... include a column for every selection index in the experiment (e.g., the Rocklin et al. study had columns for selection indices 0-6).
     * `--experimental_summary_file`: the path to an input file that follows the exact same format as the `experiments.csv` file from the Rocklin et al. study. This file has the exact same information as the `--experimental_summary_file` input file `compute_ec50_values_from_deep_sequencing_data.py`, but does not have the columns called `experiment_id` and `fastq_id`, and has additional columns called:
-    * `input`: the name of the counts file with counts for a given sample, excluding the prefix provided in `--counts_dir` (e.g., "trypsin.counts" might have counts for all samples challenged with trypsin)
-    * `column`: the name of the the column in the counts file that corresponds to the selection level of a given sample (e.g., "counts1" would correspond to the first selection level).
+        * `input`: the name of the counts file with counts for a given sample, excluding the prefix provided in `--counts_dir` (e.g., "trypsin.counts" might have counts for all samples challenged with trypsin)
+        * `column`: the name of the the column in the counts file that corresponds to the selection level of a given sample (e.g., "counts1" would correspond to the first selection level).
     * `--datasets`: a list of datasets to analyze. These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
     * `--output_dir`: a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.
 
