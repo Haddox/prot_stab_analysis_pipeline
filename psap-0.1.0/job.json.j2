@@ -1,0 +1,12 @@
+{
+  "name": "{{ agave.username }}-{{ app.name }}-test-{{ date_time.iso8601_basic_short }}",
+  "appId": "{{ agave.username }}-{{ app.name }}-{{ app.version}}",
+  "archive": false,
+  "inputs": {
+    "designed_sequences_file": "agave://data-tacc-work-mweston/mweston/designed_protein_sequences.csv",
+    "fastq_dir": "agave://data-sd2e-community/archive/ingest/Q0/sd2.biofab.upload/Rocklin_ProtStab",
+    "experimental_summary_file": "agave://data-tacc-work-mweston/mweston/experimental_summary.csv",
+    "output_dir": "output",
+    "pear_path": "/usr/local/bin/pear"
+  }
+}

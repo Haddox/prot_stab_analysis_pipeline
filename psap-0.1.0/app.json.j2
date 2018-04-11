@@ -1,0 +1,101 @@
+{
+  "name": "{{ agave.username }}-{{ app.name }}",
+  "version": "{{ app.version }}",
+  "executionType": "HPC",
+  "executionSystem": "hpc-tacc-maverick-{{ agave.username }}",
+  "parallelism": "SERIAL",
+  "deploymentPath": "{{ agave.username }}/apps/{{ app.name }}-{{ app.version }}",
+  "deploymentSystem": "data-sd2e-projects-users",
+  "defaultProcessorsPerNode": 1,
+  "defaultNodeCount": 1,
+  "defaultQueue": "normal",
+  "label": "PSAP",
+  "modules": [ "load tacc-singularity/2.3.1" ],
+  "shortDescription": "Protein Stability Analysis Pipeline",
+  "templatePath": "runner-template.sh",
+  "testPath": "tester.sh",
+  "inputs":[
+    {
+      "id": "designed_sequences_file",
+      "value": {
+        "default": "",
+        "visible": true,
+        "required": true,
+        "order": 1       
+      },
+      "semantics": {
+        "ontology": [
+          "http://edamontology.org/format_3464"
+        ]
+      },
+      "details": {
+        "label": "CSV file giving the name and protein sequence for each input design"
+      }
+    },
+    {
+      "id": "fastq_dir",
+      "value": {
+        "default": "",
+        "visible": true,
+        "required": true,
+        "order": 1       
+      },
+      "semantics": {
+        "ontology": [
+          "http://edamontology.org/format_3464"
+        ]
+      },
+      "details": {
+        "label": "a directory that has the deep-sequencing data in the form of unassembled paired-end FASTQ files"
+      }
+    },
+    {
+      "id": "experimental_summary_file",
+      "value": {
+        "default": "",
+        "visible": true,
+        "required": true,
+        "order": 1       
+      },
+      "semantics": {
+        "ontology": [
+          "http://edamontology.org/format_3464"
+        ]
+      },
+      "details": {
+        "label": "a CSV file with a variety of metadata for each sample in the experiment"
+      }
+    }
+  ],
+  "parameters":[
+    {
+      "id": "CONTAINER_IMAGE",
+      "value": {
+        "default": "{{ docker.organization }}/{{ docker.repo }}:{{ docker.tag }}",
+        "type": "string",
+        "visible": false,
+        "required": true
+      }
+    },
+    {
+      "id": "output_dir",
+      "value": {
+        "default": "output",
+        "type": "string",
+        "visible": true,
+        "required": true,
+        "order": 99
+      }
+    },
+    {
+      "id": "pear_path",
+      "value": {
+        "default": "/usr/local/bin/pear",
+        "type": "string",
+        "visible": true,
+        "required": true,
+        "order": 99
+      }
+    }
+  ]
+}
