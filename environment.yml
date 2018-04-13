@@ -79,7 +79,6 @@ dependencies:
   - jug==1.6.5
   - nbsphinx==0.3.1
   - numpydoc==0.7.0
-  - protease-experimental-analysis (/home/haddox/2018/analyze_biofab_rocklin_ngs_data/protease_experimental_analysis)==0.0.0
   - recommonmark==0.4.0
   - redis==2.10.6
 prefix: /home/haddox/.conda/envs/2018_prot_stab
