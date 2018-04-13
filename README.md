@@ -50,7 +50,7 @@ where `myenv` should be replaced with the name of the `Conda` environment you cr
     * `fraction_collected`: the fraction of cells (events) passing the selection threshold in the given library after proteolysis, according to the sorting instrument
     * `cells_collected`: the total number of cells (events) collected during the given selection, according to the sorting instrument
 
-* `--pare_path` : a path to the program `PEAR`
+* `--pare_path` : a path to the program [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/)
 
 * `--output_dir` : a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
 
@@ -76,7 +76,7 @@ All results are stored in the directory specified by the input command `--output
 
 ## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
 
-I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`analysis_code.ipynb`](analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
+I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`example_analysis_code.ipynb`](example_analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
 
 After executing the analysis, I test that the results of the pipeline match the original results from the Rocklin et al. study. To do so, I downloaded the following files from the paper's supplemental info and uploaded them in the following location in this repository:
 
@@ -112,7 +112,7 @@ This is a script from Rocklin et al. that is used to fit EC50 values. I call thi
     * `--experimental_summary_file`: the path to an input file that follows the exact same format as the `experiments.csv` file from the Rocklin et al. study. This file has the exact same information as the `--experimental_summary_file` input file `compute_ec50_values_from_deep_sequencing_data.py`, but does not have the columns called `experiment_id` and `fastq_id`, and has additional columns called:
         * `input`: the name of the counts file with counts for a given sample, excluding the prefix provided in `--counts_dir` (e.g., "trypsin.counts" might have counts for all samples challenged with trypsin)
         * `column`: the name of the the column in the counts file that corresponds to the selection level of a given sample (e.g., "counts1" would correspond to the first selection level).
-    * `--datasets`: a list of datasets to analyze. These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
+    * `--datasets`: a string of comma-delimited datasets to analyze (no-spaces between items, only commas). These datasets are defined in the `input` column of the `experiments.csv` file, formatted as `{dataset}.counts`
     * `--output_dir`: a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.
 
 * Dependencies:
