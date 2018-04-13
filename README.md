@@ -1,7 +1,6 @@
 # Computational pipeline for analyzing data from the high-throughput protein-stability assay
 
-This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper.
-
+This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper, except that I have converted relevant code from the Rocklin et al. paper from `Python 2` to `Python 3` so that everthing can be run in a single `Conda` environment (see below).
 
 ## Installing external dependencies
 
@@ -13,14 +12,14 @@ In the end, the way I got everything to work is to do the following steps in seq
 
 * First, *outside* of the `Conda` environment, install `pymc3` and other modules listed in the file `requirements.txt` using the command:
 
-    ```pip install -r requirements.txt```
-    
+    pip install -r requirements.txt
+
 * Next, use `Conda` to install all other modules from the [`environment.yml`](environment.yml) file, as described above. By default, `pymc3` was not reinstalled in the environment since it already exists externally.
 
 Ultimately, these steps should provide all necessary external dependencies. To run the pipeline, the `Conda` environment first needs to be activated using the command:
 
     source activate myenv
-    
+
 where `myenv` should be replaced with the name of the `Conda` environment you created above.
 
 
@@ -29,7 +28,7 @@ where `myenv` should be replaced with the name of the `Conda` environment you cr
 The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py`. If you are using a `Conda` environment (see above), you must first activate it using the command:
 
     source activate myenv
-    
+
 where `myenv` should be replaced with the name of the `Conda` environment you created above. Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
 
     python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--output_dir OUTPUT_DIR]
@@ -45,7 +44,7 @@ where `myenv` should be replaced with the name of the `Conda` environment you cr
     * `protease_type` : the protease associated with the sample (e.g., "trypsin" or "chymotrypsin")
     * `selection_strength` : the index of the selection step associated with the sample, following the indexing scheme used in the Rocklin et al. study. The standard range of these values is normally: 0-6, where "0" corresponds to the naive library that has not been exposed to protease and "6" corresponds to the library that has been challenged with the highest concentration of protease.
     * `conc_factor` : the fold-change in protease concentration between selection steps, i.e., when `selection_strength` is incrimented by a value of one. A value of 3 would indicate that the protease concentration is increased by 3 fold between selection steps.
-    * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the 
+    * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the
     * `fastq_id` : a string that is common to all FASTQ files for a given sample ***and*** is unique to those files. The code will search within the directory specified by `--fastq_dir` for all FASTQ files that contain this string in their name, aggregating the data among all matches. Thus, strings that are not unique to a particular dataset will result in "cross contamination" between datasets. Be careful when using numbers. For instance, the string "test1" would find not only FASTQ files with "test1" in their name, but also FASTQ files with "test10" in their name. Using a string like "test1\_" could be used to get around this problem.
     * `parent_expression`: the fraction of cells (events) passing the selection threshold in the given library before proteolysis, according to the sorting instrument.
     * `fraction_collected`: the fraction of cells (events) passing the selection threshold in the given library after proteolysis, according to the sorting instrument
@@ -68,7 +67,7 @@ All results are stored in the directory specified by the input command `--output
 * `counts/` : this directory contains counts files, including:
     * for each sample, a file giving counts of all unique protein sequences observed in the deep-sequencing data. These files are named according to the format: `{protease_type}_{selection_strength}_counts.csv`.
     * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for proteins that match one of the input designs included in the file specified by the input command `--designed_sequences_file` ***and*** have more than one counts in the naive library (selection index = 0). These files are named according to the format: `{protease_type}.counts`.
-    
+
 * `ec50_values/` : this directory contains a varity of output files, including:
     * `experiments.csv` : a file that serves as input into the script for computing EC50 values. This file is identical to the `experiments.csv` file described in the Rocklin et al. study.
     * for each protease, a file giving the aggregated counts across all samples that are associated with that protase. These files are the same as the ones in `counts/`, copied over for the purpose of inferring EC50s (the current script for inferring EC50s requires that all input is in the same directory; this should be changed in the future).
@@ -85,7 +84,7 @@ After executing the analysis, I test that the results of the pipeline match the 
 * for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
 
 
-## Summary of `Python` scripts in the pipeline
+## Summary of `Python` scripts and parameter files used in the pipeline
 
 All of the code for the pipeline is in the directory called `scripts/`. This includes scripts that perform the analyses, as well as scripts with functions that are imported as modules.
 
@@ -103,7 +102,7 @@ This is a script from Rocklin et al. that is used to fit EC50 values. I call thi
 
 * Inputs:
 
-    ```python fit_all_ec50_data.py [--counts_dir COUNTS_DIR] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--datasets DATASETS] [--output_dir OUTPUT_DIR]```
+    python fit_all_ec50_data.py [--counts_dir COUNTS_DIR] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--datasets DATASETS] [--output_dir OUTPUT_DIR]
 
     * `--counts_dir`: a path to the directory with the input counts files giving counts for a single protease across all selection levels (e.g., you might have one counts file for trypsin and one for chymotrypsin). Counts files must be structured such that rows are proteins, and columns (space-delimited) with the following names/info:
         * `name`: the name of the given protein
@@ -118,9 +117,21 @@ This is a script from Rocklin et al. that is used to fit EC50 values. I call thi
 
 * Dependencies:
     * the modules called `protease_sequencing_model.py`, `utility.py`, and `compile_counts_and_FACS_data/__init__.py`, which are described below
-        
+
 * Outputs:
     * all files in the `ec50_values/` results directory described above, except for the `experiments.csv` file
+
+### `compute_stability_scores_from_EC50_values.py`
+This is a script from Rocklin et al. that the authors used to compute stability scores from EC50 values using their unfolded-state model.
+
+* Inputs:
+
+* Dependencies:
+    * `sequence_protease_susceptibility.py`
+    * `unfolded_state_model_params`
+
+* Outputs:
+
 
 ### `deep_seq_utils.py`
 This is a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.
@@ -128,6 +139,11 @@ This is a custom script with `Python` functions for analyzing deep-sequencing da
 ### `protease_sequencing_model.py` and `utility.py`
 These are both scripts from Rocklin et al. that are imported in `fit_all_ec50_data.py` as modules for computing EC50 values.
 
+### `sequence_protease_susceptibility.py`
+A script from Rocklin et al. that is imported as a module and has functionalities that are used to compute stability scores from EC50 values.
+
+### `unfolded_state_model_params`
+A file with values used to parameterize the unfolded-state model from Rocklin et al.
 
 ## To do
 
