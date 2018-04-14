@@ -5,11 +5,15 @@ This directory contains a computational pipeline for analyzing data from the hig
 
 ## Installing external dependencies
 
-Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file, as described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html). The pipeline must be run in an activated version of this environment. To activate the environment, use the command:
+Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file, as described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html) using the command:
 
-    source activate myenv
+    conda env create -f environment.yml
+
+By default, the name of the environment will be `2018_prot_stab`. The pipeline must be run in an activated version of this environment. To activate the environment, use the command:
+
+    source activate 2018_prot_stab
     
-where `myenv` should be replaced with the name of the `Conda` environment you created above.
+(or whatever environment name you chose instead of `2018_prot_stab`).
 
 This pipeline also requires a program called [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/) to assemble paired-end deep-sequencing reads. Instructions for installing `PEAR` are provided on its [website](https://sco.h-its.org/exelixis/web/software/pear/).
 
