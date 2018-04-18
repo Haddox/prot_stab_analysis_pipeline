@@ -15,6 +15,9 @@ import pandas
 # Custom `Python` modules
 import deep_seq_utils
 
+# Get the path to this script
+scriptsdir = os.path.dirname(__file__)
+
 # Run the main code
 def main():
     """Read in command-line arguments and execute the main code"""
@@ -42,7 +45,11 @@ def main():
     paired_FASTQ_files_dir = os.path.join(output_dir, 'paired_FASTQ_files')
     counts_dir = os.path.join(output_dir, 'counts')
     ec50s_dir = os.path.join(output_dir, 'ec50_values')
-    dirs = [output_dir, paired_FASTQ_files_dir, counts_dir, ec50s_dir]
+    stability_scores_dir = os.path.join(output_dir, 'stability_scores')
+    dirs = [
+        output_dir, paired_FASTQ_files_dir, counts_dir, ec50s_dir,
+        stability_scores_dir
+    ]
     for dir_i in dirs:
         if not os.path.isdir(dir_i):
             print("Making the directory: {0}".format(dir_i))
@@ -278,14 +285,13 @@ def main():
 
 
     #---------------------------------------------------------------
-    # Compute EC50 values from the deep-sequencing counts
+    # Compute EC50 values from the deep-sequencing counts using the
+    # script `fit_all_ec50_data.py`
     #---------------------------------------------------------------    
-    # Next, compute EC50 values using the script `fit_all_ec50_data.py`
-    scriptsdir = os.path.dirname(__file__)
     ec50_logfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.log')
     ec50_errfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.err')
     if os.path.isfile(ec50_logfile):
-        print("EC50 values already exist. To rerun the computation, remove the logfile called: {0}".format(ec50_logfile))
+        print("\nEC50 values already exist. To rerun the computation, remove the logfile called: {0}".format(ec50_logfile))
     else:
         cmd = [
             'python',
@@ -295,7 +301,7 @@ def main():
             '--datasets', (','.join(proteases)),
             '--output_dir', ec50s_dir
         ]
-        print("Computing EC50 values with the command: {0}".format(
+        print("\nComputing EC50 values with the command: {0}".format(
             ' '.join(cmd)
         ))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -310,10 +316,51 @@ def main():
     
     
     #---------------------------------------------------------------
-    # Compute stability scores from the EC50 values
+    # Compute stability scores from the EC50 values using the script
+    # called `compute_stability_scores_from_EC50_values.py`
     #---------------------------------------------------------------
+    # Do this for each protease independently of the other
+    for protease in proteases:
+        
+        # Get the concentration factor from the input experimental
+        # summary file, and make sure that all factors for a given
+        # protease are the same. In theory they could be different,
+        # but the analysis framework doesn't currently support that
+        conc_factors = set(summary_df[
+            (summary_df.reset_index()['protease_type'] == protease) &\
+            (summary_df['conc_factor'].notnull())
+        ]['conc_factor'])
+        assert len(conc_factors) == 1, "Not all concentration factors are the same for the protease {0}".format(protease)
+        conc_factor = str(int(list(conc_factors)[0]))
+        
+        # Define the input file with EC50 values, the output file to
+        # be created, and assemble the entire command-line argument
+        output_file = os.path.join(stability_scores_dir, '{0}_stability_scores.txt'.format(protease))
+        ec50_values_file = os.path.join(ec50s_dir, '{0}.fulloutput'.format(protease))
+        cmd = [
+            'python',
+            '{0}/compute_stability_scores_from_EC50_values.py'.format(scriptsdir),
+            designed_sequences_file,
+            protease,
+            ec50_values_file,
+            conc_factor,
+            output_file
+        ]
+        
+        # Carry out the command
+        print("\nComputing stability scores for the protease {0} with the command: {1}".format(protease, ' '.join(cmd)))
+        stability_scores_logfile = os.path.join(stability_scores_dir, '{0}_stability_scores.log'.format(protease))
+        stability_scores_errfile = os.path.join(stability_scores_dir, '{0}_stability_scores.err'.format(protease))
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        out, err = process.communicate()
+        with open(stability_scores_logfile, 'w') as f:
+            out = out.decode("utf-8")
+            f.write(out)
+        if err:
+            with open(stability_scores_errfile, 'w') as f:
+                err = err.decode("utf-8")
+                f.write(err)
     
-    # Still need to add code for this section
 
 if __name__ == "__main__":
     main()

@@ -12,6 +12,9 @@ import glob
 import sequence_protease_susceptibility
 from sequence_protease_susceptibility import CenterLimitedPSSMModel
 
+# Get the path to this script
+scriptsdir = os.path.dirname(__file__)
+
 # Define auxilliary functions
 def model_from_df(df):
     """
@@ -51,21 +54,24 @@ def main():
     parser.add_argument("designed_sequences_file", help="a file with design names and protein sequences")
     parser.add_argument("protease", help="the relevant protease that will be used to compute predicted unfolded-state EC50 values, must be either 'trypsin' or 'chymotrypsin'")
     parser.add_argument("ec50_values_file", help="a file with ec50 values in a matrix with tab-delimited columns")
+    parser.add_argument("conc_factor", help="the fold-change in protease concentration between selection steps (integer)", type=int)
     parser.add_argument("output_file", help="a path to an output file where the results will be stored. The directories in this path must already exist.")
     args = parser.parse_args()
 
     # Assign command-line arguments to variables
     designed_sequences_file = args.designed_sequences_file
-    protease = args.designed_sequences_file
+    protease = args.protease
     if protease not in ['trypsin', 'chymotrypsin']:
         raise ValueError("The `protease` argument must be either 'trypsin' or 'chymotrypsin', instead it is: {0}".format(protease))
+    ec50_values_file = args.ec50_values_file
+    conc_factor = args.conc_factor
     output_file = args.output_file
 
     # Set up a protease-specific unfolded-state models for the input protease,
     # reading in the specific model parameters fit in the Rocklin et al. study,
     # which are encoded in the file called `unfolded_state_model_params`
-    print("Setting up the unfolded-state model for the protease: {0}".format(protease))
-    params_input_file = 'unfolded_state_model_params'
+    params_input_file = os.path.join(scriptsdir, 'unfolded_state_model_params')
+    print("Setting up the unfolded-state model for the protease {0} using the parameters encoded in the file: {1} ".format(protease, params_input_file))
     model_data = pandas.read_csv(params_input_file, delim_whitespace=True)
     unfolded_state_model = model_from_df(
         model_data.query('protease == "{0}"'.format(protease))
@@ -74,16 +80,23 @@ def main():
     # Read in input amino-acid sequences and input EC50 values and find the
     # intersection using the `name` column of each dataframe
     designed_seqs_df = pandas.read_csv(designed_sequences_file)
-    designed_seqs_df.set_index('name')
+    designed_seqs_df.set_index('name', inplace=True)
     ec50s_df = pandas.read_csv(ec50_values_file, sep='\t')
-    ec50s_df.set_index('name')
-    stability_scores_df = ec50s_df.merge(designed_seqs_df, left_index=True, right_index=True, how='inner')
-    print("Found {0} sequences in the input file with design sequences called: {0}".format(
+    ec50s_df.set_index('name', inplace=True)
+    stability_scores_df = ec50s_df.merge(
+        designed_seqs_df,
+        left_index=True,
+        right_index=True,
+        how='inner'
+    )
+        
+    # Report the overlap in sequence names in the two input files
+    print("Found {0} sequences in the input file with design sequences called: {1}".format(
         len(designed_seqs_df.index.values),
         designed_sequences_file
         )
     )
-    print("Found {0} sequences in the input file with EC50 values called: {0}".format(
+    print("Found {0} sequences in the input file with EC50 values called: {1}".format(
         len(ec50s_df.index.values),
         ec50_values_file
         )
@@ -93,19 +106,35 @@ def main():
         )
     )
 
+    # Add flanking sequences
+    print("Adding on flanking sequences")
+    stability_scores_df['full_protein_sequence'] = \
+        stability_scores_df['protein_sequence'].apply(
+            lambda x: "GGGSASHM" + x + "LEGGGSEQ"
+        )
+    
     # Compute the predicted unfolded-state EC50 for each of the sequences
     print("Computing predicted unfolded-state EC50 values")
-    designed_seqs_df['ec50_pred'] = unfolded_state_model.predict([
-        stability_scores_df['protein_sequence']
-    ])
-
-    # Verify that the model reproduces a past unfolded-EC50 predictions for a
-    # previously tested sequence HEEH_rd4_0097 in the rd 4 library
-    #seq = "DVEEQIRRLEEVLKKNQPVTWNGTTYTDPNEIKKVIEELRKSMLESSGGS"
-    #fullseq = "GGGSASHM" + seq + "LEGGGSEQ"
-    #print ('trypsin', tryp.predict([fullseq]))
-    #print ('chymotrypsin', chymo.predict([fullseq]))
-    #should return 1.62 for tryp and 1.85 for chymo
+    stability_scores_df['ec50_pred'] = list(unfolded_state_model.predict(
+        list(stability_scores_df['full_protein_sequence'])
+    ))
+    
+    # Next, for each sequence, compute the difference in the sequence's 
+    # observed EC50 value and the EC50 value predicted for the sequence in
+    # an unfolded state calling this the `ec50_rise`, as in Rocklin et al.
+    # From that, compute stability scores by transforming the difference
+    # from a log3 scale to a log10 scale
+    print("Computing stability scores based on differences in predicted and observed EC50s")
+    print("Will use a concentration factor of {0} to compute stability scores".format(conc_factor))
+    stability_scores_df['ec50_rise'] = stability_scores_df['ec50'] - \
+        stability_scores_df['ec50_pred']
+    stability_scores_df['stabilityscore'] = stability_scores_df['ec50_rise'].apply(
+        lambda x: np.log10(np.power(conc_factor, x))
+    )
+    
+    # Write the resulting dataframe with stability scores to an output file
+    print("Writing the results to the file: {0}".format(output_file))
+    stability_scores_df.to_csv(output_file, sep='\t')
 
 if __name__ == "__main__":
     main()

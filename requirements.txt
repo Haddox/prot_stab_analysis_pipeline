@@ -1,7 +1,0 @@
-biopython
-scipy
-numpy
-theano
-scikit-learn
-pymc3==3.0.rc1
-traitlets
