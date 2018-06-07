@@ -32,14 +32,21 @@ def main():
     parser.add_argument("--fastq_dir", help="the path to a directory with input FASTQ files")
     parser.add_argument("--pear_path", help="the path to the program `PEAR`")
     parser.add_argument("--output_dir", help="a path to an output directory where all the results will be stored. This directory will be created if it does not already exist")
-    args = parser.parse_args()
-
+    args = parser.parse_args()    
+    
     # Assign command-line arguments to variables
     designed_sequences_file = args.designed_sequences_file
     experimental_summary_file = args.experimental_summary_file
     fastq_dir = args.fastq_dir
     pear_path = args.pear_path
     output_dir = args.output_dir
+    print("\nHere is a list of parsed input arguments")
+    print(args)
+    
+    # Remove the terminal `/` in the `fastq_dir` arg if it exists
+    # as code lower down assumes this `/` doesn't exist
+    if fastq_dir[-1] == '/':
+        fastq_dir = fastq_dir[:-1]
     
     # Initialize output directories if they do not already exist
     paired_FASTQ_files_dir = os.path.join(output_dir, 'paired_FASTQ_files')
@@ -55,6 +62,19 @@ def main():
             print("Making the directory: {0}".format(dir_i))
             os.makedirs(dir_i)
 
+    # Read the data from the designed sequences file into a dataframe
+    # and make sure that there aren't any duplicate entires in either
+    # the `name` or `protein_sequence` columns
+    print("\nReading in input design sequences from the file: {0}".format(designed_sequences_file))
+    designed_seqs_df = pandas.read_csv(designed_sequences_file)
+    all_designed_seqs = designed_seqs_df['protein_sequence']
+    all_designed_names = designed_seqs_df['name']
+    if len(all_designed_seqs) != len(set(all_designed_seqs)):
+        raise ValueError("The `designed_sequences_file` has duplicate sequences. All sequences must be unique.")
+    if len(all_designed_names) != len(set(all_designed_names)):
+        raise ValueError("The `designed_sequences_file` has duplicate names. All names must be unique.")
+    designed_seqs_df.set_index('protein_sequence', inplace=True)
+    
     # Read the data from the experiments summary file into a dataframe
     # and get a list of unique proteases and unqiue selection indices
     summary_df = pandas.read_csv(experimental_summary_file)
@@ -77,7 +97,10 @@ def main():
         selection_index = row['selection_strength']
         experiment_name = '{0}_{1}'.format(protease_type, selection_index)
         fastq_id = row['fastq_id']
-
+        print("\nAggergating paired-end FASTQ files for {0} and selection index {1} using the FASTQ ID {2}".format(
+            protease_type, selection_index, fastq_id)
+        )
+        
         # Find all R1 and R2 files
         r1_files = glob.glob('{0}/{1}*_R1_*.fastq*'.format(fastq_dir, fastq_id))
         r2_files = [f.replace('_R1_', '_R2_') for f in r1_files]
@@ -97,9 +120,6 @@ def main():
                 raise ValueError(
                     "Failed to find a matching R2 file for: {0}".format(f)
                 )
-        print("\nAggergating paired-end FASTQ files for the {0}-treated sample and for selection index {1}".format(
-            protease_type, selection_index)
-        )
         print("Here is a list of R1 files: {0}".format(', '.join(r1_files)))
         print("Here is a list of R2 files: {0}".format(', '.join(r1_files)))
         
@@ -180,15 +200,10 @@ def main():
     #---------------------------------------------------------------
     # Create input counts and metadata files for computing EC50 values
     #---------------------------------------------------------------
-    # These input files include a single `experiments.csv` file with experimental metadata
-    # including the number of protein counts that match a starting sequence. These files
-    # also include one file per protease that reports counts at each selection step only
-    # for proteins that match one of the input designs. To make these input files, I will
-    # first read the designed sequences into a dataframe.
-    designed_seqs_df = pandas.read_csv(designed_sequences_file)
-    designed_seqs_df.set_index('protein_sequence', inplace=True)
-    
-    # Next, I will initiate a dictionary for keeping track of information for writing the
+    # The input files include a single `experiments.csv` file with experimental metadata
+    # as well as one file per protease that reports counts at each selection step for
+    # each protein that matches one of the input designs. To make these input files, I will
+    # first initiate a dictionary for keeping track of information for writing the
     # `experiments.csv` file
     counts_metadata_dict = {
         key : []
@@ -198,6 +213,7 @@ def main():
     # Next, for each protease, I will aggregate the counts and record metadata
     for protease in proteases:
         
+        print("\nAggregating counts across selection steps for {0}".format(protease))
         aggregate_counts_outfile = os.path.join(counts_dir, '{0}.counts'.format(protease))
         aggregate_df = designed_seqs_df.copy(deep=True)
         
@@ -258,6 +274,7 @@ def main():
             'counts{0}'.format(selection_index)
             for selection_index in selection_indices
         ]
+        print("Writing the aggregated counts to the file {0}".format(aggregate_counts_outfile))
         aggregate_df[
             aggregate_df['counts0']>counts_cutoff
         ][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
