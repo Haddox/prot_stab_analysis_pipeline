@@ -71,7 +71,7 @@ def main():
     # reading in the specific model parameters fit in the Rocklin et al. study,
     # which are encoded in the file called `unfolded_state_model_params`
     params_input_file = os.path.join(scriptsdir, 'unfolded_state_model_params')
-    print("Setting up the unfolded-state model for the protease {0} using the parameters encoded in the file: {1} ".format(protease, params_input_file))
+    print("\nSetting up the unfolded-state model for the protease {0} using the parameters encoded in the file: {1} ".format(protease, params_input_file))
     model_data = pandas.read_csv(params_input_file, delim_whitespace=True)
     unfolded_state_model = model_from_df(
         model_data.query('protease == "{0}"'.format(protease))
@@ -113,10 +113,29 @@ def main():
             lambda x: "GGGSASHM" + x + "LEGGGSEQ"
         )
     
+    # The unfolded-state model requires that all sequences be of the same
+    # length. If sequences are not all the same length, the below code 
+    # determines the length of the longest sequence and then appends null
+    # (`Z`) characters to the end of each of the sequences until they
+    # match the max length.
+    input_protein_sequences = list(stability_scores_df['full_protein_sequence'])
+    protein_lengths = list(map(len, input_protein_sequences))
+    if not set(protein_lengths) == 1:
+        print("Evening out sequence lengths by adding null characters to the end of sequences shorter than the longest sequence")
+        max_len = max(protein_lengths)
+        elongated_input_protein_sequences = []
+        for protein_sequence in input_protein_sequences:
+            length_difference = max_len - len(protein_sequence)
+            assert length_difference >= 0, "No sequence should be longer than the max length"
+            elongated_sequence = protein_sequence + (length_difference * 'Z')
+            elongated_input_protein_sequences.append(elongated_sequence)
+        assert (len(elongated_input_protein_sequences) == len(input_protein_sequences)), "The list of elongated sequences is the wrong length"
+        input_protein_sequences = elongated_input_protein_sequences
+    
     # Compute the predicted unfolded-state EC50 for each of the sequences
-    print("Computing predicted unfolded-state EC50 values")
+    # by passing the unfolded-state model a list of protein sequences
     stability_scores_df['ec50_pred'] = list(unfolded_state_model.predict(
-        list(stability_scores_df['full_protein_sequence'])
+        input_protein_sequences
     ))
     
     # Next, for each sequence, compute the difference in the sequence's 

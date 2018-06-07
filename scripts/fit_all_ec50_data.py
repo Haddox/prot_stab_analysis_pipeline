@@ -34,7 +34,7 @@ def none_or_int(x):
     return int(x)
 
 def none_or_div(x1, x2):
-    if x1 == None:
+    if (x1 == None) or (x2 == None):
         return None
     return x1 / x2
 
