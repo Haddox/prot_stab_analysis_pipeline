@@ -12,59 +12,31 @@ import subprocess
 import re
 import gzip
 
-def original_read_fastq(fn):
+def read_fastq(filename, five_prime_flanking_seq, three_prime_flanking_seq):
     """
-    Original function to compute the number of counts for each unique protein sequence in an input FASTQ file
-
-    Written by Gabe Rocklin and Franziska Seeger, this script parses protein sequences from deep-sequencing reads
-    based on defined flanking sequences and counts the number of occurrences of each unique sequence. I made a
-    few small tweaks to make it generalizable (e.g., removed part about file indexing)
+    Compute the number of counts for each unique protein sequence in an input FASTQ file.
+    
+    First, this function parses a DNA coding sequence from the sequencing read using input flanking
+    sequences. It then translates the coding sequence into a protein sequence and adds a count for
+    this sequence to a dictionary. Finally, it returns the name of the input file and a dictionary
+    with the counts.
+    
+    I adapted this function from code from Gabe Rocklin and Franziska Seeger. The reason that the function
+    returns the input file name along with the counts is to make it easier to use this function to
+    parallelize tasks.
 
     Args:
-        `fn` : the name of the FASTQ file
-
-    Returns:
-        A list of (`fn`, `counts_dict`):
-            `fn` : same as input
-            `sequences_found` : a dictionary with counts for each unique protein sequence,
-                of the form {protein sequence}:{counts}
-    """
-
-    sequences_found = {}
-    with open(fn) as file:
-        lines = [x.strip() for x in file.readlines()]
-
-    totalcounts = 0
-    for i in range(len(lines)):
-        if i % 4 != 1: continue
-        if len(lines[i]) < 12: continue
-        if 'CATATG' in lines[i]:
-            startpt = lines[i].find('CATATG')+6
-        else:
-            continue
-        if 'CTCGAG' in lines[i]:
-
-            endpt = lines[i].rfind('CTCGAG')
-
-            coding_dna = Seq(lines[i][startpt:endpt], generic_dna)
-            protein_seq = str(coding_dna.translate(to_stop=True))
-            if protein_seq == '': continue
-            if protein_seq not in sequences_found:
-                sequences_found[protein_seq] = 0
-            sequences_found[protein_seq] += 1
-    return [fn, sequences_found]
-
-
-def read_fastq(filename):
-    """
-    Compute the number of counts for each unique protein sequence in an input FASTQ file
-
-    This function is the same as `original_read_fastq`, but I changed it so that it is somewhat
-    more memory efficient. Specifically, instead of reading the whole FASTQ file into memory, it
-    iterates over it line by line.
-
-    Args:
-        `filename` : the name of the FASTQ file
+        `filename`: the name of the FASTQ file
+        `five_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the
+            5' end of the sequencing read (string). The coding sequence should begin immediately after
+            the final nucleotide of this flanking sequence. This sequence and the sequence given by
+            `three_prime_flanking_seq` will be used to extract the DNA coding sequence from the
+            sequencing read and then translate it into a protein dsequence.
+        `three_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the
+            3' end of the sequencing read (string; default: 'CTCGAG'). The coding sequence should begin
+            immediately before the first nucleotide of this flanking sequence.Note: this DNA sequence should
+            be in the same 5'-to-3' orientation as `five_prime_flanking_seq`. The default is set to 'CTCGAG',
+            which is the flanking sequence used in Rocklin et al., 2017, Science.
 
     Returns:
         A tupple of (`filename`, `counts_dict`):
@@ -86,22 +58,26 @@ def read_fastq(filename):
             # ... it also skips over lines that are less than 12 characters
             if len(line) < 12: continue
 
-            # Look for the pattern "CATATG" in the line in the forward direction, find it's
-            # position, and incriment that position by six, setting this equal to the starting
-            # point of the sequence of interest. Otherwise, if the pattern cannot be found, skip
-            # this entry. Note: find always identifies the first position where the pattern
-            # occurs in the string
-            if 'CATATG' in line:
-                startpt = line.find('CATATG')+6
+            # Look for the pattern given by `five_prime_flanking_seq` in the line in the forward
+            # direction, find it's position, and incriment that position by the length of this
+            # pattern, setting this equal to the starting point of the sequence of interest.
+            # Otherwise, if the pattern cannot be found, skip this entry. Note: find always
+            # identifies the first position where the pattern occurs in the string
+            if five_prime_flanking_seq in line:
+                startpt = line.find(five_prime_flanking_seq) + len(five_prime_flanking_seq)
             else:
                 continue
 
-            # Look for the pattern "CTCGAG" in the line in the reverse direction and find it's
-            # position, setting this equal to the ending point of the sequence of interest, then
-            # translate the DNA sequence into a protein sequence
-            if 'CTCGAG' in line:
-                endpt = line.rfind('CTCGAG')
-                coding_dna = Seq(line[startpt:endpt], generic_dna)
+            # Look for the pattern given by `three_prime_flanking_seq` in the line starting from
+            # the end of the line and find it's position, setting this equal to the ending point
+            # of the sequence of interest, then translate the DNA sequence into a protein sequence
+            # if the DNA sequence is a multiple of three
+            if three_prime_flanking_seq in line:
+                endpt = line.rfind(three_prime_flanking_seq)                
+                coding_dna = line[startpt:endpt]
+                if (len(coding_dna) % 3 != 0):
+                    continue
+                coding_dna = Seq(coding_dna, generic_dna)
                 protein_seq = str(coding_dna.translate(to_stop=True))
                 if protein_seq == '':
                     continue
@@ -214,13 +190,16 @@ def ComputeCounts(fastq_files_and_output_file):
     This function computes protein counts from a list of FASTQ files, aggregating the results
     among all FASTQ files. I use this function to parallelize this process. I combine multiple
     variables in a single input tupple, which makes the parallelization command much simpler.
-    Currently, it uses the above function `read_fastq` to compute counts, which is more memory
-    efficient than the function originally used in the lab `original_read_fastq`.
 
     Args:
         `fastq_files_and_outputprefix`: A tupple of the following variables:
             `fastq_files: A list of paths to input FASTQ files.
             `outputfile`: The name the output CSV file reporting sequence counts.
+            `five_prime_flanking_seq`: Flanking sequence used to parse sequencing reads. See
+                the `read_fastq` function for more details.
+            `three_prime_flanking_seq`: Flanking sequence used to parse sequencing reads. See
+                the `read_fastq` function for more details.
+                
         `forward_read_only`: If the FASTQ data only has a single forward read
             (default: False)
 
@@ -235,13 +214,17 @@ def ComputeCounts(fastq_files_and_output_file):
     """
 
     # Unpack the input
-    (fastq_files, output_file) = fastq_files_and_output_file
+    (fastq_files, output_file, five_prime_flanking_seq, three_prime_flanking_seq) = fastq_files_and_output_file
 
     # Compute counts for each FASTQ file
     assert len(fastq_files) > 0, "The list of FASTQ files is empty"
     counts_per_file = {}
     for (i, fastq_file) in enumerate(fastq_files):
-        counts_per_file[i] = read_fastq(fastq_file)[1] # return the dictionary of counts
+        counts_per_file[i] = read_fastq(
+            filename = fastq_file,
+            five_prime_flanking_seq = five_prime_flanking_seq,
+            three_prime_flanking_seq = three_prime_flanking_seq
+        )[1] # return the dictionary of counts
 
     # Aggregate counts acorss all FASTQ files, or just return the one dictionary if there is only one input
     # FASTQ file

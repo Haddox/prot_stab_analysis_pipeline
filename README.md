@@ -47,6 +47,10 @@ The pipeline is in the form of a series of `Python` scripts that are contained i
 
 * `--pare_path` : a path to the program [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/)
 
+* `--five_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the 5' end of the sequencing read (string). The coding sequence should begin immediately after the final nucleotide of this flanking sequence. This flanking sequence and the one given by `three_prime_flanking_seq` will be used to extract the DNA coding sequence from each sequencing read and then translate it into a protein dsequence. Note: the default sequence used in Rocklin et al., 2017, Science was `CATATG`.
+
+* `--three_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the 3' end of the sequencing read (string). The coding sequence should begin immediately before the first nucleotide of this flanking sequence. Note: this DNA sequence should be in the same 5'-to-3' orientation as `five_prime_flanking_seq`. Note: the default sequence used in Rocklin et al., 2017, Science was `CTCGAG`
+
 * `--output_dir` : a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
 
 

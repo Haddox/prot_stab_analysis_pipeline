@@ -31,6 +31,8 @@ def main():
     parser.add_argument("--experimental_summary_file", help="a file with experimental metadata")
     parser.add_argument("--fastq_dir", help="the path to a directory with input FASTQ files")
     parser.add_argument("--pear_path", help="the path to the program `PEAR`")
+    parser.add_argument("--five_prime_flanking_seq", help="five-prime flanking sequence used to parse DNA coding sequences from deep-sequencing reads")
+    parser.add_argument("--three_prime_flanking_seq", help="three-prime flanking sequence used to parse DNA coding sequences from deep-sequencing reads")
     parser.add_argument("--output_dir", help="a path to an output directory where all the results will be stored. This directory will be created if it does not already exist")
     args = parser.parse_args()    
     
@@ -39,9 +41,12 @@ def main():
     experimental_summary_file = args.experimental_summary_file
     fastq_dir = args.fastq_dir
     pear_path = args.pear_path
+    five_prime_flanking_seq = args.five_prime_flanking_seq
+    three_prime_flanking_seq = args.three_prime_flanking_seq
     output_dir = args.output_dir
     print("\nHere is a list of parsed input arguments")
-    print(args)
+    for arg in vars(args):
+        print("{0}: {1}".format(arg, getattr(args, arg)))
     
     # Remove the terminal `/` in the `fastq_dir` arg if it exists
     # as code lower down assumes this `/` doesn't exist
@@ -59,7 +64,7 @@ def main():
     ]
     for dir_i in dirs:
         if not os.path.isdir(dir_i):
-            print("Making the directory: {0}".format(dir_i))
+            print("\nMaking the directory: {0}".format(dir_i))
             os.makedirs(dir_i)
 
     # Read the data from the designed sequences file into a dataframe
@@ -174,6 +179,9 @@ def main():
     # a file giving all observed counts, even for proteins that don't match a starting
     # design.
     print("\nComputing protein counts from the deep-sequencing data")
+    print("Using the following 5' and 3' flanking sequences to parse coding sequences from sequencing reads:")
+    print("5' flanking sequence: {0}".format(five_prime_flanking_seq))
+    print("3' flanking sequence: {0}".format(three_prime_flanking_seq))
     input_data_for_computing_counts = []
     for experiment_name in FASTQ_files:
         fastq_files = FASTQ_files[experiment_name]
@@ -183,7 +191,9 @@ def main():
             continue
         else:
             print("Computing counts for the sample: {0}".format(experiment_name))
-            input_data_for_computing_counts.append((fastq_files, output_counts_file))
+            input_data_for_computing_counts.append(
+                (fastq_files, output_counts_file, five_prime_flanking_seq, three_prime_flanking_seq)
+            )
 
     # Compute the counts in parallel, reporting the progress of the computation
     if input_data_for_computing_counts:
