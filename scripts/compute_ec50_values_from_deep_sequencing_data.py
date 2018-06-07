@@ -266,18 +266,26 @@ def main():
             counts_metadata_dict['matching_sequences'].append(matching_sequences)
             
         # Write the aggregated counts to an output file, only including sequences with
-        # starting counts in the naive library (`counts0`) that are greater than a
-        # cutoff (`counts_cutoff`) that is currently set to zero
-        counts_cutoff = 0
+        # at least one count across all experimental samples that were sequenced
         aggregate_df.set_index('name', inplace=True)
         columns_to_write = [
             'counts{0}'.format(selection_index)
             for selection_index in selection_indices
         ]
+        aggregate_df['sum_all_counts'] = aggregate_df.apply(
+            lambda row: sum([row[counts_col] for counts_col in columns_to_write]), axis=1
+        )
+        sequences_without_any_counts_bools = aggregate_df['sum_all_counts'] == 0
+        sequences_with_counts_bools = aggregate_df['sum_all_counts'] > 0
+        assert sum(sequences_without_any_counts_bools) + sum(sequences_with_counts_bools) == len(aggregate_df)
+        print("Found {0} sequences that did not have any counts. These sequences will not be written to the output file".format(
+            sum(sequences_without_any_counts_bools)
+        ))
+        print("Found {0} sequences that did have counts".format(
+            sum(sequences_with_counts_bools)
+        ))
         print("Writing the aggregated counts to the file {0}".format(aggregate_counts_outfile))
-        aggregate_df[
-            aggregate_df['counts0']>counts_cutoff
-        ][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
+        aggregate_df[sequences_with_counts_bools][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
 
     # Make a dataframe indexed in the same way as the `experiments.csv` file by merging
     # the counts metadata with the input file with metadata
