@@ -106,7 +106,7 @@ def main():
         n_procs = len(input_data_for_computing_counts)
         myPool = Pool(processes=n_procs)
         start = time.time()
-        all_out = myPool.map_async(deep_seq_utils.ComputeCounts, input_data_for_computing_counts)
+        all_out = myPool.map_async(deep_seq_utils.compute_counts_forward_read_only, input_data_for_computing_counts)
         while not all_out.ready():
             print("%s tasks remaining after %s seconds." % (str(all_out._number_left), round(time.time() - start, 0)))
             time.sleep(300.0)
