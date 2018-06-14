@@ -26,7 +26,7 @@ The pipeline is in the form of a series of `Python` scripts that are contained i
     
 (or whatever environment name you chose instead of `2018_prot_stab`). Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
 
-    python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--output_dir OUTPUT_DIR]
+    python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--five_prime_flanking_seq FIVE_PRIME_FLANKING_SEQ] [--three_prime_flanking_seq THREE_PRIME_FLANKING_SEQ]  [--output_dir OUTPUT_DIR]
 
 * `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following comma-delimited columns:
     * `name` : a unique name for the design
