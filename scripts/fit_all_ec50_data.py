@@ -158,7 +158,6 @@ def main():
     for i, r in summary.iterrows():
         # Name of experiment (e.g., "rd1_tryp.counts")
         name = r["input"].replace(".counts", "")
-        # Expect multiple lines for the same `name`
         if name not in model_input:
             model_input[name] = {}
         # Get the selection round (e.g., counts0-counts6)

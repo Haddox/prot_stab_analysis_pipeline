@@ -1,30 +1,48 @@
 # Computational pipeline for analyzing data from the high-throughput protein-stability assay
 
-This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper.
+This directory contains a computational pipeline for analyzing data from the high-throughput protein-stability assay from [Rocklin et al, 2017, Science](https://doi.org/10.1126/science.aan0693). Much of the code that makes up the pipeline is derived from the Rocklin et al. paper. This pipeline involves three main steps:
+
+1) Computing EC50 values from FACS and deep-sequencing data using the script `scripts/compute_ec50_values_from_deep_sequencing_data.py`.
+2) Computing stability scores from EC50 values using the script `scripts/compute_stability_scores_from_EC50_values.py`
+3) Making summary plots using the script `scripts/create_summary_plots.py`.
+
+Below are detailed instructions for conducting each step. Note: I've had to separate these into different steps since steps 1 and 2 require slightly different external dependencies (see the next section). In the future, my goal is to find a single set of external dependencies that works for everything, but this has been challenging.
 
 
 ## Installing external dependencies
 
-Carrying out the pipeline requires multiple external dependencies. I have created a [`Conda`](https://conda.io/docs/index.html) environment with nearly all required dependencies. This environment can be recreated using the [`environment.yml`](environment.yml) file, as described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html) using the command:
+Carrying out the pipeline requires external dependencies. As mentioned above, some steps require different external dependencies. For each step, I have encoded nearly all dependencies in [`Conda`](https://conda.io/docs/index.html) environments, which can be installed using the following YML files:
 
-    conda env create -f environment.yml
+* `environment_compute_ec50_values.yml`: An environment for carrying out steps 1 and 3 of the pipeline.
 
-By default, the name of the environment will be `2018_prot_stab`. The pipeline must be run in an activated version of this environment. To activate the environment, use the command:
+* `environment_compute_stability_scores.yml`: An environment for carrying out step 2 of the pipeline.
 
-    source activate 2018_prot_stab
+as described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html) using the command:
+
+    conda env create -f {environment.yml}
     
-(or whatever environment name you chose instead of `2018_prot_stab`).
+where `environment.yml` is the name of the YML file. To run each step in the pipeline, the appropriate environment must first be activated. To do so, simply use the command:
 
-This pipeline also requires a program called [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/) to assemble paired-end deep-sequencing reads. Instructions for installing `PEAR` are provided on its [website](https://sco.h-its.org/exelixis/web/software/pear/).
+    source activate {env_name}
+    
+where `env_name` is the name of the environment as encoded in the YML file (e.g., `2018_prot_stab_compute_stability_scores`).
+
+In addition to the dependencies encoded in the `Conda` environments, this pipeline also requires a program called [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/) to assemble paired-end deep-sequencing reads. Instructions for installing `PEAR` are provided on its [website](https://sco.h-its.org/exelixis/web/software/pear/).
 
 
 ## How to run the pipeline
 
-The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. The entire pipeline can be run by calling the script `compute_ec50_values_from_deep_sequencing_data.py`. If you are using a `Conda` environment (see above), you must first activate it using the command:
+The pipeline is in the form of a series of `Python` scripts that are contained in the directory called `scripts/`. Below, I describe how to carry out each of the three steps of the pipeline summarized above.
 
-    source activate 2018_prot_stab
+### Step #1: Compute EC50 values from FACS and deep-sequencing data using the script `compute_ec50_values_from_deep_sequencing_data.py`
+
+First, install the dependencies in the `Conda` environment encoded in `environment_compute_ec50_values.yml` (see above). Then activate it using the command:
+
+    source activate 2018_prot_stab_compute_ec50_values
     
-(or whatever environment name you chose instead of `2018_prot_stab`). Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
+(`2018_prot_stab_compute_ec50_values` is the default name of the environment in the corresponding YML file).
+
+Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
 
     python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--five_prime_flanking_seq FIVE_PRIME_FLANKING_SEQ] [--three_prime_flanking_seq THREE_PRIME_FLANKING_SEQ]  [--output_dir OUTPUT_DIR]
 
@@ -52,6 +70,28 @@ The pipeline is in the form of a series of `Python` scripts that are contained i
 * `--three_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the 3' end of the sequencing read (string). The coding sequence should begin immediately before the first nucleotide of this flanking sequence. Note: this DNA sequence should be in the same 5'-to-3' orientation as `five_prime_flanking_seq`. Note: the default sequence used in Rocklin et al., 2017, Science was `CTCGAG`
 
 * `--output_dir` : a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
+
+The output of this step is described in the below section, and includes all output except for the output data in the folder called `stability_scores`.
+
+
+### Step #2: Compute stability scores from EC50 values using the script `compute_stability_scores_from_EC50_values.py`
+
+First, install the dependencies in the `Conda` environment encoded in `environment_compute_stability_scores.yml` (see above). Then activate it using the command:
+
+    source activate 2018_prot_stab_compute_stability_scores
+    
+(`2018_prot_stab_compute_stability_scores` is the default name of the environment in the corresponding YML file).
+
+Next, call the script `compute_stability_scores_from_EC50_values.py` using the following command-line arguments:
+
+
+### Step #3: Make summary plots using the script `create_summary_plots.py`
+
+First, activate the same `Conda` environment used in step 1.
+
+Next, call the script `create_summary_plots.py` using the following command-line arguments:
+
+
 
 
 ## Output of the pipeline
@@ -106,9 +146,9 @@ This is the main script that performs the entire analysis.
 * Inputs:
     * all inputs are described above in the section called "How to run the pipeline"
 * Dependencies:
-    * all scripts in the `scripts/` directory, described below
+    * all scripts in the `scripts/` directory, described below, as well as `PARE`
 * Outputs:
-    * all outputs are described above in the section called "How to run the pipeline"
+    * all outputs are described above in the section called "Output of the pipeline"
 
 ### `fit_all_ec50_data.py`
 
@@ -146,7 +186,7 @@ This is a script that computes stability scores from EC50 values using the unfol
     * the parameters file called `unfolded_state_model_params`, which is described below
 * Outputs:
     * all files in the `stability_scores/` results directory described above
-
+    
 
 ### `deep_seq_utils.py`
 This is a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.

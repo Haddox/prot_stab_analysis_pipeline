@@ -1,0 +1,16 @@
+name: 2018_prot_stab_compute_ec50_values
+dependencies:
+- biopython
+- joblib
+- matplotlib
+- seaborn
+- mkl=2017
+- mkl-service
+- numpy
+- pandas
+- pymc3=3.0
+- scikit-learn
+- scipy
+- theano=1.0.1
+- traitlets
+- pyqt=4

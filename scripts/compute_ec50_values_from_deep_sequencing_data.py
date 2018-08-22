@@ -349,53 +349,6 @@ def main():
                 err = err.decode("utf-8")
                 f.write(err)
     
-    
-    #---------------------------------------------------------------
-    # Compute stability scores from the EC50 values using the script
-    # called `compute_stability_scores_from_EC50_values.py`
-    #---------------------------------------------------------------
-    # Do this for each protease independently of the other
-    for protease in proteases:
-        
-        # Get the concentration factor from the input experimental
-        # summary file, and make sure that all factors for a given
-        # protease are the same. In theory they could be different,
-        # but the analysis framework doesn't currently support that
-        conc_factors = set(summary_df[
-            (summary_df.reset_index()['protease_type'] == protease) &\
-            (summary_df['conc_factor'].notnull())
-        ]['conc_factor'])
-        assert len(conc_factors) == 1, "Not all concentration factors are the same for the protease {0}".format(protease)
-        conc_factor = str(int(list(conc_factors)[0]))
-        
-        # Define the input file with EC50 values, the output file to
-        # be created, and assemble the entire command-line argument
-        output_file = os.path.join(stability_scores_dir, '{0}_stability_scores.txt'.format(protease))
-        ec50_values_file = os.path.join(ec50s_dir, '{0}.fulloutput'.format(protease))
-        cmd = [
-            'python',
-            '{0}/compute_stability_scores_from_EC50_values.py'.format(scriptsdir),
-            designed_sequences_file,
-            protease,
-            ec50_values_file,
-            conc_factor,
-            output_file
-        ]
-        
-        # Carry out the command
-        print("\nComputing stability scores for the protease {0} with the command: {1}".format(protease, ' '.join(cmd)))
-        stability_scores_logfile = os.path.join(stability_scores_dir, '{0}_stability_scores.log'.format(protease))
-        stability_scores_errfile = os.path.join(stability_scores_dir, '{0}_stability_scores.err'.format(protease))
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        with open(stability_scores_logfile, 'w') as f:
-            out = out.decode("utf-8")
-            f.write(out)
-        if err:
-            with open(stability_scores_errfile, 'w') as f:
-                err = err.decode("utf-8")
-                f.write(err)
-    
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,15 @@
+name: 2018_prot_stab_test
+dependencies:
+- biopython
+- joblib
+- matplotlib
+- mkl
+- mkl-service
+- numpy
+- pandas
+- pymc3=3.0
+- scikit-learn
+- scipy
+- theano
+- traitlets
+

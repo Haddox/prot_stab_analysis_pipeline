@@ -1,4 +1,4 @@
-name: 2018_prot_stab
+name: 2018_prot_stab_compute_stability_scores
 channels:
 - defaults
 dependencies:
@@ -51,7 +51,7 @@ dependencies:
 - pcre=8.42=h439df22_0
 - pip=9.0.3=py35_0
 - pygpu=0.7.5=py35h14c3975_0
-- pymc3=3.3=py35_0
+- pymc3=3.2
 - pyparsing=2.2.0=py35h041ed72_1
 - pyqt=5.9.2=py35h751905a_0
 - python=3.5.5=hc3d631a_1
@@ -81,5 +81,4 @@ dependencies:
   - numpydoc==0.7.0
   - recommonmark==0.4.0
   - redis==2.10.6
-prefix: /home/haddox/.conda/envs/2018_prot_stab
 
