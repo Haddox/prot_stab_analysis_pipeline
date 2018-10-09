@@ -126,6 +126,20 @@ All results are stored in the directory specified by the input command `--output
 
 The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
 
+I ran the above notebook on TACC. To do so, you will need a TACC account. If you do not already have one, you can request one by following the instructions here: https://sd2e.org/accounts/request-access/
+
+The way I ran this notebook on TACC was by logging onto the Maverick server using the following command:
+
+    ssh [tacc_user_name]@maverick.tacc.utexas.edu
+
+and then launching Jupyter using the arguments
+
+    module use /work/03076/gzynda/public/apps/modulefiles
+    module load singularity-sd2e
+    submit_notebook
+
+The last argument should prompt you to enter your email address. After doing so, you should receive an email. Use the URL and the password to launch Jupyter. Then change directories into `tacc_work/`, clone this repository, and run the notebook.
+
 
 ## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
 
@@ -202,7 +216,6 @@ This is a custom script with `Python` functions for analyzing deep-sequencing da
 ### `protease_sequencing_model.py` and `utility.py`
 These are both scripts from Rocklin et al. that are imported in `fit_all_ec50_data.py` as modules for computing EC50 values.
 
-
 ### `sequence_protease_susceptibility.py`
 This script has functionalities that are used to implement the unfolded-state model in the script `compute_stability_scores_from_EC50_values.py`.
 
@@ -213,7 +226,6 @@ A file with values used to parameterize the unfolded-state model in the script `
 ## To do
 
 * Set up a system for logging progress of the script
-* Figure out how to implement the unfolded-state model and compute EC50 values
 * Set up a `conda` environment that is completely self contained
     * currently, there is a problem with importing `pymc3` as installed by `conda`
 * Ask Gabe if he included samples with zero counts in the naive sample.
