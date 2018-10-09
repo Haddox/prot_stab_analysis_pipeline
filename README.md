@@ -89,9 +89,12 @@ Next, call the script `compute_stability_scores_from_EC50_values.py` using the f
 
 First, activate the same `Conda` environment used in step 1.
 
-Next, call the script `create_summary_plots.py` using the following command-line arguments:
+Next, call the script `create_summary_plots.py` using the following command-line argument:
 
-
+    python scripts/create_summary_plots.py [--data_dir DATA_DIR] [--output_dir OUTPUT_DIR]
+    
+* `--data_dir`: the directory that contains all output data from steps 1 and 2 (specified above by `--output_dir`)
+* `--output_dir`: the output directory where the plots will be stored
 
 
 ## Output of the pipeline
@@ -117,6 +120,11 @@ All results are stored in the directory specified by the input command `--output
         * `ec50_pred`: a sequence's unfolded EC50, as predicted by the unfolded-state model from Rocklin et al.
         * `ec50_rise`: the difference between a sequence's observed EC50 value and the predicted EC50 value of the unfolded sequence (= observed - predicted unfolded)
         * `stabilityscore`: the stability score (**TODO: describe how this is computed**)
+
+
+## A template notebook that compiles experimental data from the BIOFAB uploaded on TACC
+
+The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
 
 
 ## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
