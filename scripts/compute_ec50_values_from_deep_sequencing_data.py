@@ -21,7 +21,7 @@ scriptsdir = os.path.dirname(__file__)
 # Run the main code
 def main():
     """Read in command-line arguments and execute the main code"""
-    
+
     #---------------------------------------------------------------
     # Read in command-line arguments and experimental metadata
     #---------------------------------------------------------------
@@ -34,8 +34,9 @@ def main():
     parser.add_argument("--five_prime_flanking_seq", help="five-prime flanking sequence used to parse DNA coding sequences from deep-sequencing reads")
     parser.add_argument("--three_prime_flanking_seq", help="three-prime flanking sequence used to parse DNA coding sequences from deep-sequencing reads")
     parser.add_argument("--output_dir", help="a path to an output directory where all the results will be stored. This directory will be created if it does not already exist")
-    args = parser.parse_args()    
-    
+    parser.add_argument("--protein_or_dna_level", default='protein', help="whether EC50 values should be computed at the protein or DNA level. Options are: 'protein' or 'dna'. Default is: 'protein'")
+    args = parser.parse_args()
+
     # Assign command-line arguments to variables
     designed_sequences_file = args.designed_sequences_file
     experimental_summary_file = args.experimental_summary_file
@@ -44,15 +45,16 @@ def main():
     five_prime_flanking_seq = args.five_prime_flanking_seq
     three_prime_flanking_seq = args.three_prime_flanking_seq
     output_dir = args.output_dir
+    protein_or_dna_level = args.protein_or_dna_level
     print("\nHere is a list of parsed input arguments")
     for arg in vars(args):
         print("{0}: {1}".format(arg, getattr(args, arg)))
-    
+
     # Remove the terminal `/` in the `fastq_dir` arg if it exists
     # as code lower down assumes this `/` doesn't exist
     if fastq_dir[-1] == '/':
         fastq_dir = fastq_dir[:-1]
-    
+
     # Initialize output directories if they do not already exist
     paired_FASTQ_files_dir = os.path.join(output_dir, 'paired_FASTQ_files')
     counts_dir = os.path.join(output_dir, 'counts')
@@ -72,25 +74,33 @@ def main():
     # the `name` or `protein_sequence` columns
     print("\nReading in input design sequences from the file: {0}".format(designed_sequences_file))
     designed_seqs_df = pandas.read_csv(designed_sequences_file)
-    all_designed_seqs = designed_seqs_df['protein_sequence']
+    if protein_or_dna_level == 'protein':
+        assert 'protein_sequence' in designed_seqs_df.columns.values, "Expected there to be a column called 'protein_sequence' in the file {0}".format(designed_sequences_file)
+        designed_seqs_df.rename(columns={'protein_sequence':'sequence'}, inplace=True)
+    elif protein_or_dna_level == 'dna':
+        assert 'dna_sequence' in designed_seqs_df.columns.values, "Expected there to be a column called 'dna_sequence' in the file {0}".format(designed_sequences_file)
+        designed_seqs_df.rename(columns={'dna_sequence':'sequence'}, inplace=True)
+    else:
+        raise ValueError("Failed to parse the input variable `protein_or_dna_level`: {0}. Must be 'protein or 'dna'".format(protein_or_dna_level))
+    all_designed_seqs = designed_seqs_df['sequence']
     all_designed_names = designed_seqs_df['name']
     if len(all_designed_seqs) != len(set(all_designed_seqs)):
         raise ValueError("The `designed_sequences_file` has duplicate sequences. All sequences must be unique.")
     if len(all_designed_names) != len(set(all_designed_names)):
         raise ValueError("The `designed_sequences_file` has duplicate names. All names must be unique.")
-    designed_seqs_df.set_index('protein_sequence', inplace=True)
-    
+    designed_seqs_df.set_index('sequence', inplace=True)
+
     # Read the data from the experiments summary file into a dataframe
     # and get a list of unique proteases and unqiue selection indices
     summary_df = pandas.read_csv(experimental_summary_file)
     proteases = set(summary_df['protease_type'])
     selection_indices = set(summary_df['selection_strength'])
-    
-    
+
+
     #---------------------------------------------------------------
     # Find and assemble all paired-end FASTQ files reads for each sample
     #---------------------------------------------------------------
-    
+
     # Iterate through each sample in the experimental summary dataframe,
     # make a list of paired-end FASTQ files for each sample, and use `PARE`
     # to assemble each file pair
@@ -105,7 +115,7 @@ def main():
         print("\nAggergating paired-end FASTQ files for {0} and selection index {1} using the FASTQ ID {2}".format(
             protease_type, selection_index, fastq_id)
         )
-        
+
         # Find all R1 and R2 files
         r1_files = glob.glob('{0}/{1}*_R1_*.fastq*'.format(fastq_dir, fastq_id))
         r2_files = [f.replace('_R1_', '_R2_') for f in r1_files]
@@ -127,7 +137,7 @@ def main():
                 )
         print("Here is a list of R1 files: {0}".format(', '.join(r1_files)))
         print("Here is a list of R2 files: {0}".format(', '.join(r1_files)))
-        
+
         # Assemble each pair of FASTQ files using `PARE`, storing the assembled files
         # in a dictionary called `FASTQ_files`, which has the following format:
         # {`experiment_name`} : {list of all assembled FASTQ files for a given sample},
@@ -146,7 +156,7 @@ def main():
             print("\nPreparing to assemble the files {0} and {1}, outputting the assembled reads to a file called {2}".format(
                 r1_file, r2_file, paired_FASTQ_output_file
             ))
-            
+
             # Don't rerun the assembly if the ouptut file already exists. Otherwise,
             # run the assembly
             if os.path.isfile(paired_FASTQ_output_file):
@@ -170,10 +180,10 @@ def main():
                 out, err = log.communicate()
                 with open(logfile, 'wb') as f:
                     f.write(out)
-           
-    
+
+
     #---------------------------------------------------------------
-    # Compute protein counts from the deep-sequencing data for each sample
+    # Compute counts from the deep-sequencing data for each sample
     #---------------------------------------------------------------
     # For each sample, compute protein-level counts from the deep-sequencing data. Write
     # a file giving all observed counts, even for proteins that don't match a starting
@@ -192,7 +202,7 @@ def main():
         else:
             print("Computing counts for the sample: {0}".format(experiment_name))
             input_data_for_computing_counts.append(
-                (fastq_files, output_counts_file, five_prime_flanking_seq, three_prime_flanking_seq)
+                (fastq_files, output_counts_file, five_prime_flanking_seq, three_prime_flanking_seq, protein_or_dna_level)
             )
 
     # Compute the counts in parallel, reporting the progress of the computation
@@ -206,7 +216,7 @@ def main():
             time.sleep(300.0)
         print("Finished %s processes in %s seconds!" % (n_procs, round(time.time() - start, 2)))
 
-        
+
     #---------------------------------------------------------------
     # Create input counts and metadata files for computing EC50 values
     #---------------------------------------------------------------
@@ -219,29 +229,29 @@ def main():
         key : []
         for key in ['protease_type', 'selection_strength', 'input', 'column', 'matching_sequences']
     }
-    
+
     # Next, for each protease, I will aggregate the counts and record metadata
     for protease in proteases:
-        
+
         print("\nAggregating counts across selection steps for {0}".format(protease))
         aggregate_counts_outfile = os.path.join(counts_dir, '{0}.counts'.format(protease))
         aggregate_df = designed_seqs_df.copy(deep=True)
-        
+
         for selection_index in selection_indices:
-            
+
             # Read in the counts file
             counts_file = os.path.join(counts_dir, '{0}_{1}_counts.csv'.format(protease, selection_index))
             assert os.path.isfile(counts_file), "Could not find the file: {0}".format(counts_file)
             df = pandas.read_csv(counts_file)
             df.set_index('sequence', inplace=True)
-            
+
             # Next, merge the counts with the dataframe of input sequences, using
             # `how="left"` to only merge on the rows in the dataframe of input sequences.
             # Some of the original sequences may not have counts if they weren't observed,
             # which will lead to values of nan. I will convert these values to counts of
             # zero.
             aggregate_df = aggregate_df.merge(
-                df, left_index=True, right_index=True, how="left"
+                df, left_index=True, right_index=True, how="left", validate="1:1"
             )
             aggregate_df.fillna(value=0, inplace=True)
             aggregate_df.rename(
@@ -249,7 +259,7 @@ def main():
                 columns={'counts': 'counts{0}'.format(selection_index)},
                 inplace=True
             )
-                        
+
             # Next, I will compute the total number of deep-sequencing counts, including
             # for sequences that do not match one of the input sequences
             total_counts = sum(df['counts'])
@@ -260,7 +270,7 @@ def main():
             # with a dataframe from above with sequences of input designs, using
             # `how=outer` to use the union of indices from both frames, so that no row
             # gets dropped.
-            df = df.merge(designed_seqs_df, left_index=True, right_index=True, how="outer")
+            df = df.merge(designed_seqs_df, left_index=True, right_index=True, how="outer", validate="1:1")
             total_counts_matching_starting_seqs = sum(
                 df[
                     (df['counts'].notnull()) & (df['name'].notnull())
@@ -274,7 +284,7 @@ def main():
             counts_metadata_dict['input'].append('{0}.counts'.format(protease))
             counts_metadata_dict['column'].append('counts{0}'.format(selection_index))
             counts_metadata_dict['matching_sequences'].append(matching_sequences)
-            
+
         # Write the aggregated counts to an output file, only including sequences with
         # at least one count across all experimental samples that were sequenced
         aggregate_df.set_index('name', inplace=True)
@@ -322,7 +332,7 @@ def main():
     #---------------------------------------------------------------
     # Compute EC50 values from the deep-sequencing counts using the
     # script `fit_all_ec50_data.py`
-    #---------------------------------------------------------------    
+    #---------------------------------------------------------------
     ec50_logfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.log')
     ec50_errfile = os.path.join(ec50s_dir, 'fit_all_ec50_data.err')
     if os.path.isfile(ec50_logfile):
@@ -348,8 +358,7 @@ def main():
             with open(ec50_errfile, 'w') as f:
                 err = err.decode("utf-8")
                 f.write(err)
-    
+
 
 if __name__ == "__main__":
     main()
-    

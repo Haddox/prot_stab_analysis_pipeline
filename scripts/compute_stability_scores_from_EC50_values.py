@@ -11,6 +11,8 @@ import numpy as np
 import glob
 import sequence_protease_susceptibility
 from sequence_protease_susceptibility import CenterLimitedPSSMModel
+from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
 
 # Get the path to this script
 scriptsdir = os.path.dirname(__file__)
@@ -51,11 +53,13 @@ def main():
 
     # Read in command-line arguments using `argparse`
     parser = argparse.ArgumentParser(description="Compute stability scores from EC50 values")
-    parser.add_argument("designed_sequences_file", help="a file with design names and protein sequences")
+    parser.add_argument("designed_sequences_file", help="a file with design names and sequences")
     parser.add_argument("protease", help="the relevant protease that will be used to compute predicted unfolded-state EC50 values, must be either 'trypsin' or 'chymotrypsin'")
     parser.add_argument("ec50_values_file", help="a file with ec50 values in a matrix with tab-delimited columns")
     parser.add_argument("conc_factor", help="the fold-change in protease concentration between selection steps (integer)", type=int)
     parser.add_argument("output_file", help="a path to an output file where the results will be stored. The directories in this path must already exist.")
+    parser.add_argument("--protein_or_dna_level", default='protein', help="whether `designed_sequences_file` contains DNA or protein sequences. Options are: 'protein' or 'dna'. Default is: 'protein'")
+
     args = parser.parse_args()
 
     # Assign command-line arguments to variables
@@ -66,6 +70,10 @@ def main():
     ec50_values_file = args.ec50_values_file
     conc_factor = args.conc_factor
     output_file = args.output_file
+    protein_or_dna_level = args.protein_or_dna_level
+    print("\nHere is a list of parsed input arguments")
+    for arg in vars(args):
+        print("{0}: {1}".format(arg, getattr(args, arg)))
 
     # Set up a protease-specific unfolded-state models for the input protease,
     # reading in the specific model parameters fit in the Rocklin et al. study,
@@ -77,7 +85,7 @@ def main():
         model_data.query('protease == "{0}"'.format(protease))
     )
 
-    # Read in input amino-acid sequences and input EC50 values and find the
+    # Read in input sequences and input EC50 values and find the
     # intersection using the `name` column of each dataframe
     designed_seqs_df = pandas.read_csv(designed_sequences_file)
     designed_seqs_df.set_index('name', inplace=True)
@@ -89,7 +97,7 @@ def main():
         right_index=True,
         how='inner'
     )
-        
+
     # Report the overlap in sequence names in the two input files
     print("Found {0} sequences in the input file with design sequences called: {1}".format(
         len(designed_seqs_df.index.values),
@@ -106,15 +114,27 @@ def main():
         )
     )
 
+    # If the designed sequences are DNA sequences, add a column that gives the
+    # translated sequence
+    if protein_or_dna_level == 'protein':
+        assert 'protein_sequence' in designed_seqs_df.columns.values, "Expected there to be a column called 'protein_sequence' in the file {0}".format(designed_sequences_file)
+    elif protein_or_dna_level == 'dna':
+        assert 'dna_sequence' in designed_seqs_df.columns.values, "Expected there to be a column called 'dna_sequence' in the file {0}".format(designed_sequences_file)
+        stability_scores_df['protein_sequence'] = stability_scores_df['dna_sequence'].apply(
+            lambda x: str(Seq(x, generic_dna).translate())
+        )
+    else:
+        raise ValueError("Failed to parse the input variable `protein_or_dna_level`: {0}. Must be 'protein or 'dna'".format(protein_or_dna_level))
+
     # Add flanking sequences
     print("Adding on flanking sequences")
     stability_scores_df['full_protein_sequence'] = \
         stability_scores_df['protein_sequence'].apply(
             lambda x: "GGGSASHM" + x + "LEGGGSEQ"
         )
-    
+
     # The unfolded-state model requires that all sequences be of the same
-    # length. If sequences are not all the same length, the below code 
+    # length. If sequences are not all the same length, the below code
     # determines the length of the longest sequence and then appends null
     # (`Z`) characters to the end of each of the sequences until they
     # match the max length.
@@ -131,14 +151,14 @@ def main():
             elongated_input_protein_sequences.append(elongated_sequence)
         assert (len(elongated_input_protein_sequences) == len(input_protein_sequences)), "The list of elongated sequences is the wrong length"
         input_protein_sequences = elongated_input_protein_sequences
-    
+
     # Compute the predicted unfolded-state EC50 for each of the sequences
     # by passing the unfolded-state model a list of protein sequences
     stability_scores_df['ec50_pred'] = list(unfolded_state_model.predict(
         input_protein_sequences
     ))
-    
-    # Next, for each sequence, compute the difference in the sequence's 
+
+    # Next, for each sequence, compute the difference in the sequence's
     # observed EC50 value and the EC50 value predicted for the sequence in
     # an unfolded state calling this the `ec50_rise`, as in Rocklin et al.
     # From that, compute stability scores by transforming the difference
@@ -150,7 +170,7 @@ def main():
     stability_scores_df['stabilityscore'] = stability_scores_df['ec50_rise'].apply(
         lambda x: np.log10(np.power(conc_factor, x))
     )
-    
+
     # Write the resulting dataframe with stability scores to an output file
     print("Writing the results to the file: {0}".format(output_file))
     stability_scores_df.to_csv(output_file, sep='\t')
