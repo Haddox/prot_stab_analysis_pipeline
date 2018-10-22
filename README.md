@@ -124,10 +124,21 @@ All results are stored in the directory specified by the input command `--output
         * `stabilityscore`: the stability score (**TODO: describe how this is computed**)
 
 
+## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
+
+I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`example_analysis_code.ipynb`](example_analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
+
+After executing the analysis, I test that the results of the pipeline match the original results from the Rocklin et al. study. To do so, I downloaded the following files from the paper's supplemental info and uploaded them in the following location in this repository:
+
+* for each protease, I uploaded a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
+* for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
+
+
 ## A template notebook that compiles experimental data from the BIOFAB uploaded on TACC
 
 The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
 
+### How to launch a Jupyter notebook on the Maverick cluster on TACC
 I ran the above notebook on TACC. To do so, you will need a TACC account. If you do not already have one, you can request one by following the instructions here: https://sd2e.org/accounts/request-access/
 
 The way I ran this notebook on TACC was by logging onto the Maverick server using the following command:
@@ -142,23 +153,29 @@ and then launching Jupyter using the arguments
 
 The last argument should prompt you to enter your email address. After doing so, you should receive an email. Use the URL and the password to launch Jupyter. Then change directories into `tacc_work/`, clone this repository, and run the notebook.
 
+### How to install external dependencies required by the notebook
 
-## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
+* How to get `FlowCytometryTools`
 
-I provide an example of how to execute this pipeline in the `Jupyter` notebook called [`example_analysis_code.ipynb`](example_analysis_code.ipynb). In this notebook, I reproduce the entire analysis from the Rocklin et al. study, starting from the deep-sequencing data. Most of the input data for the analysis is stored in the directory called `data/`. However, the input FASTQ files are stored in a separate location on TACC.
+  ```
+  Install miniconda
+  conda create -n py27 python=2.7
+  pip install flowcytometrytools
+  python
+  import FlowCytometryTools
+  print(FlowCytometryTools)
+  exit()
+  -- Take note of the site-packages from the print()
+  In the jupyter notebook:
+  sys.path.append("Whatever your path was that ends with this /py27/lib/python2.7/site-packages")
+  ```
 
-After executing the analysis, I test that the results of the pipeline match the original results from the Rocklin et al. study. To do so, I downloaded the following files from the paper's supplemental info and uploaded them in the following location in this repository:
+* How to get `PEAR`
 
-* for each protease, I uploaded a file giving protein counts generated from the raw deep-sequencing data. These files are stored in the directory `data/original_Rocklin_counts/` and are called `rd4_chymo.counts` and `rd4_tryp.counts` for chymotrypsin and trypsin, respectively.
-* for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
-
-
-## Organization of data and computer code for analyzing new datasets
-
-Below is a list of additional datasets analyzed in this project:
-
-* `Inna_April_2016`: I generate an experimental summary file in the notebook: `create_experimental_summary_file_Inna_April_2016.ipynb` and then carry out the pipeline in the notebook: analysis_code_Inna_April_2016.ipynb
-
+  ```
+  conda install -c bioconda pear
+  readlink -f $(which pear)
+  ```
 
 ## Summary of `Python` scripts in the pipeline
 
@@ -228,6 +245,4 @@ A file with values used to parameterize the unfolded-state model in the script `
 ## To do
 
 * Set up a system for logging progress of the script
-* Set up a `conda` environment that is completely self contained
-    * currently, there is a problem with importing `pymc3` as installed by `conda`
 * Ask Gabe if he included samples with zero counts in the naive sample.
