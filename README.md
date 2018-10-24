@@ -158,8 +158,8 @@ The last argument should prompt you to enter your email address. After doing so,
 * How to get `FlowCytometryTools`
 
   ```
-  Install miniconda
   conda create -n py27 python=2.7
+  source activate py27
   pip install flowcytometrytools
   python
   import FlowCytometryTools
