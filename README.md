@@ -138,20 +138,12 @@ After executing the analysis, I test that the results of the pipeline match the 
 
 The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
 
-### How to launch a Jupyter notebook on the Maverick cluster on TACC
+### How to launch a Jupyter notebook on the Wrangler cluster on TACC
 I ran the above notebook on TACC. To do so, you will need a TACC account. If you do not already have one, you can request one by following the instructions here: https://sd2e.org/accounts/request-access/
 
-The way I ran this notebook on TACC was by logging onto the Maverick server using the following command:
+To launch a notebook on Wrangler, go here: https://sd2e.org/workbench/workspace . Note: if you have to sign in, it might take you to a home page that is different than the one linked above. In that case, just click the above link again and it should take you there.
 
-    ssh [tacc_user_name]@maverick.tacc.utexas.edu
-
-and then launching Jupyter using the arguments
-
-    module use /work/03076/gzynda/public/apps/modulefiles
-    module load singularity-sd2e
-    submit_notebook
-
-The last argument should prompt you to enter your email address. After doing so, you should receive an email. Use the URL and the password to launch Jupyter. Then change directories into `tacc_work/`, clone this repository, and run the notebook.
+Next, go to the `My Apps` tab at the top right, and select the one called `HPC Jupyter Notebook - Wrangler`. Enter your email address in the `Parameters` section. Sometimes the `Job name` section has too many characters. Just delete the last few at the end. Then click `run`, and you should receive an email with a link and a password for launching the notebook.
 
 ### How to install external dependencies required by the notebook
 
