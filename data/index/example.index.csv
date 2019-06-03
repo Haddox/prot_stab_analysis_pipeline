@@ -1,9 +1,0 @@
-# This file contains the list of all proteins present for certain runs
-# or experiments. It is used to index other files to ensure consistency.
-#
-# The only two columns are library, name
-library,name
-Eva1,aaa
-Longxing,bbb
-Rocklin,ccc
-Rocklin,ddd

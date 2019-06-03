@@ -126,7 +126,7 @@ def main():
     #---------------------------------------------------------------
     # Read in command-line arguments using `argparse`
     parser = argparse.ArgumentParser()
-    parser.add_argument("--counts_dir", help="a path the directory with files giving protein counts")
+    parser.add_argument("--counts_dir", help="a path the directory with files giving counts for each variant in the library")
     parser.add_argument("--experimental_summary_file", help="a path to the input experimental summary file")
     parser.add_argument("--datasets", help="a string with comma-separated datasets (e.g., 'dataset1,dataset2,etc.'")
     parser.add_argument("--output_dir", help="a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.")
@@ -138,20 +138,20 @@ def main():
     datasets = args.datasets.split(',')
     output_dir = args.output_dir
     print("\nWill analyze the datasets: {0}".format(', '.join(datasets)))
-    
-    
+
+
     # Initialize a the output directory if it doesn't already exist
     print("\nWill store the resulting EC50 values in the directory: {0}".format(output_dir))
     if not os.path.isdir(output_dir):
         print("Making the output direcotry".format(output_dir))
         os.makedirs(output_dir)
-    
+
     # Read in metadata contained in the `experimental_summary_file`
     summary = pandas.read_csv(experimental_summary_file)
     summary = summary.dropna(how='all')
     summary = summary.fillna('-')
-    summary = summary.where( summary != '-', None)    
-    
+    summary = summary.where( summary != '-', None)
+
     # Read in deep-sequencing counts from each experiment
     print("\nReading in counts from files stored in the directory: {0}".format(counts_dir))
     model_input = {}
@@ -195,7 +195,7 @@ def main():
             model_input[name][rnd]['num_selected']  *= r['matching_sequences']
 
     # Read in the counts files for each round of selection with each protease
-    # (e.g. `rd1_tryp.counts`), which has counts for each protein (rows) at each
+    # (e.g. `rd1_tryp.counts`), which has counts for each variant (rows) at each
     # selection level (columns; 0-6). Store in dictionary keyed by experiment
     # (e.g, `rd1_tryp`)
     counts = {
@@ -216,7 +216,7 @@ def main():
         # seven columns corresponding to the seven levels of selection (0-6)
         for i, col in enumerate(counts_df.columns[1:]):
             # For a given experiment and selection strength, add an ordered list
-            # of all protein names (e.g., `EHEE_0401.pdb`)
+            # of all variant names (e.g., `EHEE_0401.pdb`)
             model_input[exper][i]["name"] = counts_df["name"]
             # ... as well as an ordered list of all sequencing counts matching those
             # sequences
@@ -244,7 +244,7 @@ def main():
             # with
             v['min_fraction'] = None
 
-            
+
     #---------------------------------------------------------------
     # Compute EC50 values from the input data
     #---------------------------------------------------------------

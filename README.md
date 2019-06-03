@@ -20,11 +20,11 @@ Carrying out the pipeline requires external dependencies. As mentioned above, so
 as described [here](https://conda.io/docs/user-guide/tasks/manage-environments.html) using the command:
 
     conda env create -f {environment.yml}
-    
+
 where `environment.yml` is the name of the YML file. To run each step in the pipeline, the appropriate environment must first be activated. To do so, simply use the command:
 
     source activate {env_name}
-    
+
 where `env_name` is the name of the environment as encoded in the YML file (e.g., `2018_prot_stab_compute_stability_scores`).
 
 In addition to the dependencies encoded in the `Conda` environments, this pipeline also requires a program called [`PEAR`](https://sco.h-its.org/exelixis/web/software/pear/) to assemble paired-end deep-sequencing reads. Instructions for installing `PEAR` are provided on its [website](https://sco.h-its.org/exelixis/web/software/pear/).
@@ -39,16 +39,16 @@ The pipeline is in the form of a series of `Python` scripts that are contained i
 First, install the dependencies in the `Conda` environment encoded in `environment_compute_ec50_values.yml` (see above). Then activate it using the command:
 
     source activate 2018_prot_stab_compute_ec50_values
-    
+
 (`2018_prot_stab_compute_ec50_values` is the default name of the environment in the corresponding YML file).
 
 Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with the appropriate command-line arguments, as described below. All arguments are required:
 
     python compute_ec50_values_from_deep_sequencing_data.py [--designed_sequences_file DESIGNED_SEQUENCES_FILE] [--experimental_summary_file EXPERIMENTAL_SUMMARY_FILE] [--fastq_dir FASTQ_DIR] [--pear_path PEAR_PATH] [--five_prime_flanking_seq FIVE_PRIME_FLANKING_SEQ] [--three_prime_flanking_seq THREE_PRIME_FLANKING_SEQ]  [--output_dir OUTPUT_DIR]
 
-* `--designed_sequences_file` : the path to a CSV file giving the name and protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following comma-delimited columns:
+* `--designed_sequences_file` : the path to a CSV file giving the name and DNA or protein sequence for each input design. See [here](data/Rocklin_2017_Science/designed_protein_sequences.csv) for an example. In this file, each row specifies a design and each column specifies information about that design. This file must have the following comma-delimited columns:
     * `name` : a unique name for the design
-    * `protein_sequence` : the protein sequence of the design
+    * `protein_sequence` or `dna_sequence` : the protein or DNA sequence of the design, respectively
 
 * `--fastq_dir` : a path to a directory that has the deep-sequencing data in the form of unassembled paired-end FASTQ files for all samples in the experiment.
 
@@ -57,7 +57,7 @@ Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with th
     * `protease_type` : the protease associated with the sample (e.g., "trypsin" or "chymotrypsin")
     * `selection_strength` : the index of the selection step associated with the sample, following the indexing scheme used in the Rocklin et al. study. The standard range of these values is normally: 0-6, where "0" corresponds to the naive library that has not been exposed to protease and "6" corresponds to the library that has been challenged with the highest concentration of protease.
     * `conc_factor` : the fold-change in protease concentration between selection steps, i.e., when `selection_strength` is incrimented by a value of one. A value of 3 would indicate that the protease concentration is increased by 3 fold between selection steps. Note: leave this value blank for samples that have not been treated with any protease.
-    * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the 
+    * `parent` : the value of `selection_strength` for the sample that serves as the input library for the given selection. A value of 0 would indicate that the
     * `fastq_id` : a string that is common to all FASTQ files for a given sample ***and*** is unique to those files. The code will search within the directory specified by `--fastq_dir` for all FASTQ files that contain this string in their name, aggregating the data among all matches. Thus, strings that are not unique to a particular dataset will result in "cross contamination" between datasets. Be careful when using numbers. For instance, the string "test1" would find not only FASTQ files with "test1" in their name, but also FASTQ files with "test10" in their name. Using a string like "test1\_" could be used to get around this problem.
     * `parent_expression`: the fraction of cells (events) passing the selection threshold in the given library before proteolysis, according to the sorting instrument.
     * `fraction_collected`: the fraction of cells (events) passing the selection threshold in the given library after proteolysis, according to the sorting instrument
@@ -69,7 +69,9 @@ Next, call the script `compute_ec50_values_from_deep_sequencing_data.py` with th
 
 * `--three_prime_flanking_seq`: a DNA sequence that flanks the coding sequence of interest on the 3' end of the sequencing read (string). The coding sequence should begin immediately before the first nucleotide of this flanking sequence. Note: this DNA sequence should be in the same 5'-to-3' orientation as `five_prime_flanking_seq`. Note: the default sequence used in Rocklin et al., 2017, Science was `CTCGAG`
 
-* `--output_dir` : a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
+* `--output_dir`: a path to an output directory where all the results will be stored. This directory will be created if it does not already exist
+
+* `--protein_or_dna_level`: whether `designed_sequences_file` contains DNA or protein sequences. Options are: 'protein' or 'dna'. Default is: 'protein'.
 
 The output of this step is described in the below section, and includes all output except for the output data in the folder called `stability_scores`.
 
@@ -79,7 +81,7 @@ The output of this step is described in the below section, and includes all outp
 First, install the dependencies in the `Conda` environment encoded in `environment_compute_stability_scores.yml` (see above). Then activate it using the command:
 
     source activate 2018_prot_stab_compute_stability_scores
-    
+
 (`2018_prot_stab_compute_stability_scores` is the default name of the environment in the corresponding YML file).
 
 Next, call the script `compute_stability_scores_from_EC50_values.py` using the following command-line arguments:
@@ -92,7 +94,7 @@ First, activate the same `Conda` environment used in step 1.
 Next, call the script `create_summary_plots.py` using the following command-line argument:
 
     python scripts/create_summary_plots.py [--data_dir DATA_DIR] [--output_dir OUTPUT_DIR]
-    
+
 * `--data_dir`: the directory that contains all output data from steps 1 and 2 (specified above by `--output_dir`)
 * `--output_dir`: the output directory where the plots will be stored
 
@@ -107,38 +109,19 @@ All results are stored in the directory specified by the input command `--output
     * for each sample and for each pair of unassembled FASTQ files associated with that sample, a FASTQ of the assembled paired-end reads. The assembled FASTQ files are named according to the format: `{protease_type}_{selection_strength}-{n}.fastq`, where `protease_type` and `selection_strength` are derived from the corresponding entries in the input file specified by the command `--experimental_summary_file`, and where `n` corresponds to the index of the assembled pair of FASTQ files, indexed starting at one. This index is necessary since some samples may be associated with more than one pair of FASTQ files.
 
 * `counts/`: this directory contains counts files, including:
-    * for each sample, a file giving counts of all unique protein sequences observed in the deep-sequencing data. These files are named according to the format: `{protease_type}_{selection_strength}_counts.csv`.
-    * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for proteins that match one of the input designs included in the file specified by the input command `--designed_sequences_file` ***and*** have more than one counts in the naive library (selection index = 0). These files are named according to the format: `{protease_type}.counts`.
-    
+    * for each sample, a file giving counts of all unique sequences observed in the deep-sequencing data. These files are named according to the format: `{protease_type}_{selection_strength}_counts.csv`. They contain either protein or DNA counts depending on the value of the `--protein_or_dna_level` input argument.
+    * for each protease, a file giving the counts aggregated across all samples that are associated with that protease. This file only includes counts for sequences that match one of the input designs included in the file specified by the input command `--designed_sequences_file` ***and*** have more than one counts in the naive library (selection index = 0). These files are named according to the format: `{protease_type}.counts`. These files are similar to the `.fulloutput` files from the Rocklin et al. study. They contain either protein or DNA counts depending on the value of the `--protein_or_dna_level` input argument.
+
 * `ec50_values/`: this directory contains a variety of output files, including:
     * `experiments.csv` : a file that serves as input into the script for computing EC50 values. This file is identical to the `experiments.csv` file described in the Rocklin et al. study.
-    * for each protease, a file giving the aggregated counts across all samples that are associated with that protase. These files are the same as the ones in `counts/`, copied over for the purpose of inferring EC50s (the current script for inferring EC50s requires that all input is in the same directory; this should be changed in the future).
+    * for each protease, a file giving the aggregated counts across all samples that are associated with that protease. These files are the same as the ones in `counts/`, copied over for the purpose of inferring EC50s (the current script for inferring EC50s requires that all input is in the same directory; this should be changed in the future).
     * for each protease, a file called `{protease}.fulloutput` giving the EC50 values and other metadata in tab-delimited columns. These files are similar to the `.fulloutput` files from the Rocklin et al. study. See [here](data/original_Rocklin_EC50_values/rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput) for an example.
-    
+
 * `stability_scores/`: this directory contains a variety of output files, including:
     * for each protease, a file called `{protease}_stability_scores.txt`, which is the same as the corresponding `{protease}.fulloutput` file in the `ec50_values/` subdirectory, but with the following additional columns:
         * `ec50_pred`: a sequence's unfolded EC50, as predicted by the unfolded-state model from Rocklin et al.
         * `ec50_rise`: the difference between a sequence's observed EC50 value and the predicted EC50 value of the unfolded sequence (= observed - predicted unfolded)
         * `stabilityscore`: the stability score (**TODO: describe how this is computed**)
-
-
-## A template notebook that compiles experimental data from the BIOFAB uploaded on TACC
-
-The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
-
-I ran the above notebook on TACC. To do so, you will need a TACC account. If you do not already have one, you can request one by following the instructions here: https://sd2e.org/accounts/request-access/
-
-The way I ran this notebook on TACC was by logging onto the Maverick server using the following command:
-
-    ssh [tacc_user_name]@maverick.tacc.utexas.edu
-
-and then launching Jupyter using the arguments
-
-    module use /work/03076/gzynda/public/apps/modulefiles
-    module load singularity-sd2e
-    submit_notebook
-
-The last argument should prompt you to enter your email address. After doing so, you should receive an email. Use the URL and the password to launch Jupyter. Then change directories into `tacc_work/`, clone this repository, and run the notebook.
 
 
 ## An example analysis that reproduces the results from Rocklin et al. from the starting deep-sequencing and FACS data
@@ -151,12 +134,40 @@ After executing the analysis, I test that the results of the pipeline match the 
 * for each protease, I uploaded a file giving EC50 values (and other related metadata) for each protein design. These files are stored in the directory `data/original_Rocklin_EC50_values/` and are called `rd4_chymo.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` and `rd4_tryp.sel_k0.8.erf.5e-7.0.0001.3cycles.fulloutput` for chymotrypsin and trypsin, respectively.
 
 
-## Organization of data and computer code for analyzing new datasets
+## A template notebook that compiles experimental data from the BIOFAB uploaded on TACC
 
-Below is a list of additional datasets analyzed in this project:
+The notebook [`template_notebook.ipynb`](template_notebook.ipynb) is a template for carrying out the above pipeline for computing stability scores starting from experimental data from the UW BIOFAB uploaded to TACC. See the instructions in the notebook for further details.
 
-* `Inna_April_2016`: I generate an experimental summary file in the notebook: `create_experimental_summary_file_Inna_April_2016.ipynb` and then carry out the pipeline in the notebook: analysis_code_Inna_April_2016.ipynb
+### How to launch a Jupyter notebook on the Wrangler cluster on TACC
+I ran the above notebook on TACC. To do so, you will need a TACC account. If you do not already have one, you can request one by following the instructions here: https://sd2e.org/accounts/request-access/
 
+To launch a notebook on Wrangler, go here: https://sd2e.org/workbench/workspace . Note: if you have to sign in, it might take you to a home page that is different than the one linked above. In that case, just click the above link again and it should take you there.
+
+Next, go to the `My Apps` tab at the top right, and select the one called `HPC Jupyter Notebook - Wrangler`. Enter your email address in the `Parameters` section. Sometimes the `Job name` section has too many characters. Just delete the last few at the end. Then click `run`, and you should receive an email with a link and a password for launching the notebook.
+
+### How to install external dependencies required by the notebook
+
+* How to get `FlowCytometryTools`
+
+  ```
+  conda create -n py27 python=2.7
+  source activate py27
+  pip install flowcytometrytools
+  python
+  import FlowCytometryTools
+  print(FlowCytometryTools)
+  exit()
+  -- Take note of the site-packages from the print()
+  In the jupyter notebook:
+  sys.path.append("Whatever your path was that ends with this /py27/lib/python2.7/site-packages")
+  ```
+
+* How to get `PEAR`
+
+  ```
+  conda install -c bioconda pear
+  readlink -f $(which pear)
+  ```
 
 ## Summary of `Python` scripts in the pipeline
 
@@ -193,7 +204,7 @@ This is a script from Rocklin et al. that is used to fit EC50 values. I call thi
 
 * Dependencies:
     * the modules called `protease_sequencing_model.py`, `utility.py`, and `compile_counts_and_FACS_data/__init__.py`, which are described below
-        
+
 * Outputs:
     * all files in the `ec50_values/` results directory described above, except for the `experiments.csv` file
 
@@ -208,7 +219,7 @@ This is a script that computes stability scores from EC50 values using the unfol
     * the parameters file called `unfolded_state_model_params`, which is described below
 * Outputs:
     * all files in the `stability_scores/` results directory described above
-    
+
 
 ### `deep_seq_utils.py`
 This is a custom script with `Python` functions for analyzing deep-sequencing data, used in `compute_ec50_values_from_deep_sequencing_data.py`.
@@ -226,6 +237,4 @@ A file with values used to parameterize the unfolded-state model in the script `
 ## To do
 
 * Set up a system for logging progress of the script
-* Set up a `conda` environment that is completely self contained
-    * currently, there is a problem with importing `pymc3` as installed by `conda`
 * Ask Gabe if he included samples with zero counts in the naive sample.
