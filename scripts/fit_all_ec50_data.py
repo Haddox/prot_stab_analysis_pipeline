@@ -51,7 +51,6 @@ def fit_model(model_input, dataset, parameters):
         protease_sequencing_model.FractionalSelectionModel(**dict(parameters))
         .build_model(model_input[dataset])
     )
-
     return model.find_MAP()
 
 def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parameters, output_dir):
@@ -64,8 +63,7 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     counts_df['ec50'] = fit_parameters['sel_ec50']
 
     cis = np.array([
-        model.estimate_ec50_cred(fit_parameters, i, cred_spans=[.95])["cred_intervals"][.95]
-        for i in range(len(counts_df))
+        x["cred_intervals"][.95] for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95]) 
     ])
 
     predictions = {
@@ -154,6 +152,23 @@ def main():
 
     # Read in deep-sequencing counts from each experiment
     print("\nReading in counts from files stored in the directory: {0}".format(counts_dir))
+
+    # ======== Set Up model_input ============
+    # model_input:
+    # { "trypsin": {
+    #       0: 
+    #       1: {parent: 0, selection_level:1, num_selected:7600000, Frac_sel_pop: 0.97, conc_factor: 3, 
+    #                      name: [], seq_counts: [], P_sel: []}
+    #       2:
+    #      ...
+    #    },
+    # { "chymotrypsin": {
+    #       0:
+    #       1:
+    #       2:
+    #      ...
+    #    }
+    #}
     model_input = {}
     for i, r in summary.iterrows():
         # Name of experiment (e.g., "rd1_tryp.counts")
@@ -177,6 +192,7 @@ def main():
             parent            = r['parent'],
             selection_level   = r['selection_strength'],
             num_selected      = fix_num_selected(r['cells_collected']),
+            parent_expression = r['parent_expression'],     # bcov
             Frac_sel_pop = none_or_div(r['fraction_collected'], r['parent_expression']),
             conc_factor       = r['conc_factor']
         )
@@ -186,7 +202,16 @@ def main():
         # that actually match one of the input designs (i.e., don't have sequence
         # errors) by multiplying `Frac_sel_pop` by `matching_sequences`.
         if model_input[name][rnd]['Frac_sel_pop'] != None:
-            model_input[name][rnd]['Frac_sel_pop'] *= r['matching_sequences']
+            # bcov says to clip this value to prevent the Binomial for Frac_sel_pop from exploding
+            model_input[name][rnd]['Frac_sel_pop'] = min(0.999, model_input[name][rnd]['Frac_sel_pop'])
+
+            # bcov does not think that this should be here.
+            #   Everything inside the model assumes that Frac_sel_pop refers to the fraction
+            #   of designs that survive protease treatment that would have already been
+            #   sorted into the sister-no-protease pool. Applying "matching_sequences" to this conversion
+            #   doesn't make sense because the effects would have already been seen in the sister-no-protease pool.
+            #   "matching_sequences" get correctly used below when we adjust the total number of sequences that we have
+            # model_input[name][rnd]['Frac_sel_pop'] *= r['matching_sequences'] # bcov comment
 
         # If there is data for `matching_sequences`, then estimate the number of
         # total cells collected that actually have designs matching one of the input
@@ -198,6 +223,12 @@ def main():
     # (e.g. `rd1_tryp.counts`), which has counts for each variant (rows) at each
     # selection level (columns; 0-6). Store in dictionary keyed by experiment
     # (e.g, `rd1_tryp`)
+    #
+    # counts = {
+    #   "trypsin": df,      # df contains name, counts[0-6]
+    #   "chymotrypsin": df
+    # }
+    #
     counts = {
         exper : pandas.read_csv(
             path.join(counts_dir, exper + ".counts"),
@@ -222,7 +253,9 @@ def main():
             # sequences
             model_input[exper][i]['seq_counts'] = counts_df[col].astype(np.int)
 
-        # Iterate through each selection level compute `P_sel`
+
+        # Iterate through each selection level compute `P_sel` (P_sel is basically counts at each round)
+        #  Ensure that 'P_sel'.sum() ~= 'num_selected'
         for k, v in list(model_input[exper].items()):
             # If the total number of sequencing counts is greater than the total
             # number of cells collected (specifically, the number of cells expected
@@ -250,12 +283,14 @@ def main():
     #---------------------------------------------------------------
     # Define features of the parameter space used in the analysis
     param_space = dict(
-        response_fn = ("NormalSpaceErfResponse",),
+        response_fn = ("NormalSpaceErfResponse",),  # Given ec50 and protease concentration, what fraction of cells are going to survive?
         min_selection_mass = [5e-7],
         min_selection_rate = [0.0001],
         outlier_detection_opt_cycles = [3],
         sel_k = [0.8]
     )
+    # If any of the param_space has multiple values, queue up multiple
+    # ec50 value fit runs to try all combinations
     parameter_sets = [frozenset(list(d.items())) for d in dict_product(param_space)]
 
     # Iterate through each experiment, computing EC50 values for each sequence

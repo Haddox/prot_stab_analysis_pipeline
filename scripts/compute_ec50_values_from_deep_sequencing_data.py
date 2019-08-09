@@ -171,7 +171,10 @@ def main():
                     '-f', r1_file,
                     '-r', r2_file,
                     '-o', outfile_prefix,
-                    '-j', '20'
+                    '-j', '20',
+                    #'-d', "/mnt/home/bcov/from/hugh/prot_stab_analysis_pipeline/data/hhhh/just_sequences_with_ladder.csv",
+                    '-p', '1.0',
+                    #'--min-overlap', '1'
                 ]
                 print("Calling PARE with the command: {0}".format(' '.join(cmd)))
                 print("Storing the results in an assembled FASTQ file called: {0}".format(paired_FASTQ_output_file))
@@ -230,103 +233,106 @@ def main():
         for key in ['protease_type', 'selection_strength', 'input', 'column', 'matching_sequences']
     }
 
-    # Next, for each protease, I will aggregate the counts and record metadata
-    for protease in proteases:
+    bcov_skip = False
+    if ( not bcov_skip ):
+        # Next, for each protease, I will aggregate the counts and record metadata
+        for protease in proteases:
 
-        print("\nAggregating counts across selection steps for {0}".format(protease))
-        aggregate_counts_outfile = os.path.join(counts_dir, '{0}.counts'.format(protease))
-        aggregate_df = designed_seqs_df.copy(deep=True)
+            print("\nAggregating counts across selection steps for {0}".format(protease))
+            aggregate_counts_outfile = os.path.join(counts_dir, '{0}.counts'.format(protease))
+            aggregate_df = designed_seqs_df.copy(deep=True)
 
-        for selection_index in selection_indices:
+            for selection_index in selection_indices:
 
-            # Read in the counts file
-            counts_file = os.path.join(counts_dir, '{0}_{1}_counts.csv'.format(protease, selection_index))
-            assert os.path.isfile(counts_file), "Could not find the file: {0}".format(counts_file)
-            df = pandas.read_csv(counts_file)
-            df.set_index('sequence', inplace=True)
+                # Read in the counts file
+                counts_file = os.path.join(counts_dir, '{0}_{1}_counts.csv'.format(protease, selection_index))
+                assert os.path.isfile(counts_file), "Could not find the file: {0}".format(counts_file)
+                df = pandas.read_csv(counts_file)
+                df.set_index('sequence', inplace=True)
 
-            # Next, merge the counts with the dataframe of input sequences, using
-            # `how="left"` to only merge on the rows in the dataframe of input sequences.
-            # Some of the original sequences may not have counts if they weren't observed,
-            # which will lead to values of nan. I will convert these values to counts of
-            # zero.
-            aggregate_df = aggregate_df.merge(
-                df, left_index=True, right_index=True, how="left", validate="1:1"
+                # Next, merge the counts with the dataframe of input sequences, using
+                # `how="left"` to only merge on the rows in the dataframe of input sequences.
+                # Some of the original sequences may not have counts if they weren't observed,
+                # which will lead to values of nan. I will convert these values to counts of
+                # zero.
+                aggregate_df = aggregate_df.merge(
+                    df, left_index=True, right_index=True, how="left", validate="1:1"
+                )
+                aggregate_df.fillna(value=0, inplace=True)
+                aggregate_df.rename(
+                    index=str,
+                    columns={'counts': 'counts{0}'.format(selection_index)},
+                    inplace=True
+                )
+
+                # Next, I will compute the total number of deep-sequencing counts, including
+                # for sequences that do not match one of the input sequences
+                total_counts = sum(df['counts'])
+                n_unique_sequences = len(df['counts'].index.values)
+
+                # Next, I will compute the fraction of all counts that actually match one of
+                # the input sequences. To do so, I will first merge the counts dataframe
+                # with a dataframe from above with sequences of input designs, using
+                # `how=outer` to use the union of indices from both frames, so that no row
+                # gets dropped.
+                df = df.merge(designed_seqs_df, left_index=True, right_index=True, how="outer", validate="1:1")
+                total_counts_matching_starting_seqs = sum(
+                    df[
+                        (df['counts'].notnull()) & (df['name'].notnull())
+                    ]['counts']
+                )
+                matching_sequences = round(total_counts_matching_starting_seqs / total_counts, 3)
+
+                # Add counts metadata
+                counts_metadata_dict['protease_type'].append(protease)
+                counts_metadata_dict['selection_strength'].append(selection_index)
+                counts_metadata_dict['input'].append('{0}.counts'.format(protease))
+                counts_metadata_dict['column'].append('counts{0}'.format(selection_index))
+                counts_metadata_dict['matching_sequences'].append(matching_sequences)
+
+            # Write the aggregated counts to an output file, only including sequences with
+            # at least one count across all experimental samples that were sequenced
+            aggregate_df.set_index('name', inplace=True)
+            columns_to_write = [
+                'counts{0}'.format(selection_index)
+                for selection_index in selection_indices
+            ]
+            aggregate_df['sum_all_counts'] = aggregate_df.apply(
+                lambda row: sum([row[counts_col] for counts_col in columns_to_write]), axis=1
             )
-            aggregate_df.fillna(value=0, inplace=True)
-            aggregate_df.rename(
-                index=str,
-                columns={'counts': 'counts{0}'.format(selection_index)},
-                inplace=True
-            )
+            sequences_without_any_counts_bools = aggregate_df['sum_all_counts'] == 0
+            sequences_with_counts_bools = aggregate_df['sum_all_counts'] > 0
+            assert sum(sequences_without_any_counts_bools) + sum(sequences_with_counts_bools) == len(aggregate_df)
+            print("Found {0} sequences that did not have any counts. These sequences will not be written to the output file".format(
+                sum(sequences_without_any_counts_bools)
+            ))
+            print("Found {0} sequences that did have counts".format(
+                sum(sequences_with_counts_bools)
+            ))
+            print("Writing the aggregated counts to the file {0}".format(aggregate_counts_outfile))
+            aggregate_df[sequences_with_counts_bools][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
 
-            # Next, I will compute the total number of deep-sequencing counts, including
-            # for sequences that do not match one of the input sequences
-            total_counts = sum(df['counts'])
-            n_unique_sequences = len(df['counts'].index.values)
-
-            # Next, I will compute the fraction of all counts that actually match one of
-            # the input sequences. To do so, I will first merge the counts dataframe
-            # with a dataframe from above with sequences of input designs, using
-            # `how=outer` to use the union of indices from both frames, so that no row
-            # gets dropped.
-            df = df.merge(designed_seqs_df, left_index=True, right_index=True, how="outer", validate="1:1")
-            total_counts_matching_starting_seqs = sum(
-                df[
-                    (df['counts'].notnull()) & (df['name'].notnull())
-                ]['counts']
-            )
-            matching_sequences = round(total_counts_matching_starting_seqs / total_counts, 3)
-
-            # Add counts metadata
-            counts_metadata_dict['protease_type'].append(protease)
-            counts_metadata_dict['selection_strength'].append(selection_index)
-            counts_metadata_dict['input'].append('{0}.counts'.format(protease))
-            counts_metadata_dict['column'].append('counts{0}'.format(selection_index))
-            counts_metadata_dict['matching_sequences'].append(matching_sequences)
-
-        # Write the aggregated counts to an output file, only including sequences with
-        # at least one count across all experimental samples that were sequenced
-        aggregate_df.set_index('name', inplace=True)
-        columns_to_write = [
-            'counts{0}'.format(selection_index)
-            for selection_index in selection_indices
-        ]
-        aggregate_df['sum_all_counts'] = aggregate_df.apply(
-            lambda row: sum([row[counts_col] for counts_col in columns_to_write]), axis=1
+        # Make a dataframe indexed in the same way as the `experiments.csv` file by merging
+        # the counts metadata with the input file with metadata
+        counts_metadata_df = pandas.DataFrame.from_dict(counts_metadata_dict)
+        counts_metadata_df.set_index(['protease_type', 'selection_strength'], inplace=True)
+        summary_df.dropna(how='all', inplace=True)
+        summary_df.set_index(['protease_type', 'selection_strength'], inplace=True)
+        assert(
+            sorted(list(counts_metadata_df.index.values)) == \
+                sorted(list(summary_df.index.values))
+        ), "Error in processing the sample-specific metadata"
+        summary_df = summary_df.merge(
+            counts_metadata_df, left_index=True, right_index=True, how="outer"
         )
-        sequences_without_any_counts_bools = aggregate_df['sum_all_counts'] == 0
-        sequences_with_counts_bools = aggregate_df['sum_all_counts'] > 0
-        assert sum(sequences_without_any_counts_bools) + sum(sequences_with_counts_bools) == len(aggregate_df)
-        print("Found {0} sequences that did not have any counts. These sequences will not be written to the output file".format(
-            sum(sequences_without_any_counts_bools)
-        ))
-        print("Found {0} sequences that did have counts".format(
-            sum(sequences_with_counts_bools)
-        ))
-        print("Writing the aggregated counts to the file {0}".format(aggregate_counts_outfile))
-        aggregate_df[sequences_with_counts_bools][columns_to_write].to_csv(aggregate_counts_outfile, sep=' ')
-
-    # Make a dataframe indexed in the same way as the `experiments.csv` file by merging
-    # the counts metadata with the input file with metadata
-    counts_metadata_df = pandas.DataFrame.from_dict(counts_metadata_dict)
-    counts_metadata_df.set_index(['protease_type', 'selection_strength'], inplace=True)
-    summary_df.dropna(how='all', inplace=True)
-    summary_df.set_index(['protease_type', 'selection_strength'], inplace=True)
-    assert(
-        sorted(list(counts_metadata_df.index.values)) == \
-            sorted(list(summary_df.index.values))
-    ), "Error in processing the sample-specific metadata"
-    summary_df = summary_df.merge(
-        counts_metadata_df, left_index=True, right_index=True, how="outer"
-    )
-    summary_df.reset_index(inplace=True)
-    experiments_column_order = [
-        'input', 'column', 'parent', 'selection_strength', 'conc_factor', 'parent_expression',
-        'fraction_collected', 'matching_sequences', 'cells_collected'
-    ]
+        summary_df.reset_index(inplace=True)
+        experiments_column_order = [
+            'input', 'column', 'parent', 'selection_strength', 'conc_factor', 'parent_expression',
+            'fraction_collected', 'matching_sequences', 'cells_collected'
+        ]
     output_experiments_file = os.path.join(ec50s_dir, 'experiments.csv')
-    summary_df[experiments_column_order].to_csv(output_experiments_file, index=False)
+    if ( not bcov_skip):
+        summary_df[experiments_column_order].to_csv(output_experiments_file, index=False)
 
 
     #---------------------------------------------------------------
