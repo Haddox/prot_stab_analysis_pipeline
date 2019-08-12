@@ -101,7 +101,7 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 		#   the number returned by this function never goes above 87%. This leads to issues
 		#   when the majority of the library is unnafected by the protease because this function
 		#   can't return 100%. The normalization fixes this.
-		return (1.0 - erf(sel_xs)) / 2.0  / (1-erf(-sel_k))/2                               # The full Eq. 10
+		return (1.0 - erf(sel_xs)) / 2.0  / ((1-erf(-sel_k))/2)                               # The full Eq. 10
 
 class NormalSpaceLogisticResponse(SelectionResponseFn):
 	@property
