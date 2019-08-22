@@ -136,7 +136,7 @@ def main():
                     "Failed to find a matching R2 file for: {0}".format(f)
                 )
         print("Here is a list of R1 files: {0}".format(', '.join(r1_files)))
-        print("Here is a list of R2 files: {0}".format(', '.join(r1_files)))
+        print("Here is a list of R2 files: {0}".format(', '.join(r2_files)))
 
         # Assemble each pair of FASTQ files using `PARE`, storing the assembled files
         # in a dictionary called `FASTQ_files`, which has the following format:
@@ -200,7 +200,6 @@ def main():
             continue
         else:
             print("Computing counts for the sample: {0}".format(experiment_name))
-            print("Using the files: {0}".format(fastq_files))
             input_data_for_computing_counts.append(
                 (fastq_files, output_counts_file, five_prime_flanking_seq, three_prime_flanking_seq, protein_or_dna_level)
             )
