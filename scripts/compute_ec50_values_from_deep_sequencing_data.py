@@ -163,7 +163,6 @@ def main():
                 print("\nThe paired output FASTQ file called {0} already exists. Will not rerun `PARE`.".format(
                     paired_FASTQ_output_file
                 ))
-                break
                 continue
             else:
                 cmd = [
@@ -201,6 +200,7 @@ def main():
             continue
         else:
             print("Computing counts for the sample: {0}".format(experiment_name))
+            print("Using the files: {0}".format(fastq_files))
             input_data_for_computing_counts.append(
                 (fastq_files, output_counts_file, five_prime_flanking_seq, three_prime_flanking_seq, protein_or_dna_level)
             )
