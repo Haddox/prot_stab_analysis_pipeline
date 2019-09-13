@@ -82,9 +82,18 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 	def population_params(self):
 		return ["conc_factor"]
 
+	def selection_mass_impl(self, num, sel_level, sel_k, sel_ec50, conc_factor, div_parent_is_expressor):
+		if ( div_parent_is_expressor ):
+			# runs only for round1 (i.e. where the parent is the 0 protease sort)
+			return self.selection_mass_from_naive(num, sel_level, sel_k, sel_ec50, conc_factor) / \
+				   self.selection_mass_from_naive(num, -100, sel_k, 0, conc_factor)
+		else:
+			# runs for rounds 2 and 3 (i.e. where the parent is a previously sorted pool that was grown up)
+			return self.selection_mass_from_naive(num, sel_level, sel_k, sel_ec50, conc_factor)
+
 	# Given ec50 and protease concentration, what fraction
 	# of cells are going to survive?
-	def selection_mass_impl(self, num, sel_level, sel_k, sel_ec50, conc_factor):
+	def selection_mass_impl_from_naive(self, num, sel_level, sel_k, sel_ec50, conc_factor):
 		sel_xs = sel_k * (conc_factor ** (sel_level - sel_ec50) - 1.0)   # Bracketed term of Eq. 10
 																		 # Note that [E]/EC_50 has been replaced by
 		if num == numpy:                                                 # conc_factor ** (sel_level - sel_ec50)
@@ -92,16 +101,8 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 		else:                                                            # are passed to this function on a log scale, with the base
 			erf = T.erf                                                  # defined by conc_factor.
 
-		# bcov believes this next line should be normalized to sorting at 0 protease (which it is now)
-		#  The reason for this lies in how Frac_sel_pop is being used.
-		#  In the paper, they claim that Frac_sel_pop will be used to calculate the number
-		#   of cells that pass the sony, however, in the context of this program
-		#   Frac_sel_pop calculates the number of cells that go cleaved below the threshold.
-		#   Since about 13% of cells never even had enough displayed protein to get past the sony,
-		#   the number returned by this function never goes above 87%. This leads to issues
-		#   when the majority of the library is unnafected by the protease because this function
-		#   can't return 100%. The normalization fixes this.
-		return (1.0 - erf(sel_xs)) / 2.0  / ((1-erf(-sel_k))/2)                               # The full Eq. 10
+
+		return (1.0 - erf(sel_xs)) / 2.0                                # The full Eq. 10
 
 class NormalSpaceLogisticResponse(SelectionResponseFn):
 	@property
@@ -224,6 +225,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			if p["selection_level"] is not None:
 				src_dist = start_dist * self.response_impl.selection_mass(
 					sel_level = p["selection_level"], sel_k = sel_k, sel_ec50 = sel_ec50,
+					div_parent_is_expressor = self.population_data[pdat['parent']]["selection_level"] is None,
 					**{param : p[param] for param in self.response_impl.population_params}
 				)
 				fraction_selected = src_dist.sum() / start_dist.sum()
@@ -342,7 +344,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			#  lower: -3,
 			#  upper: 9
 			# }
-			self.sel_range = dict(lower=min(sel_values) - sel_mag * .5, upper=max(sel_values)+sel_mag*0.5)
+			self.sel_range = dict(lower=min(sel_values) - sel_mag * .6, upper=max(sel_values)+sel_mag*0.6)
 			logger.info("Inferred sel_ec50 range: %s", self.sel_range)
 
 			# == sel_ec50 ==
@@ -412,6 +414,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					# Indicates fraction of cells expected to survive given the ec50 and concentration
 					Frac_sel = self.response_impl.selection_mass(                                  # Eq. 10, where "sel_k" is K_sel and
 						sel_level = pdat["selection_level"], sel_k = sel_k, sel_ec50 = sel_ec50,   # sel_ec50 is the vector of EC_50s, and
+						div_parent_is_expressor = self.population_data[pdat['parent']]["selection_level"] is None,
 						**{param : pdat[param] for param in self.response_impl.population_params}  # selection_level is the enzyme "concentration" on a
 					)                                                                              # log scale, with base specified in the input.
 
@@ -661,6 +664,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			# fraction surviving protease for the whole ec50 sweep
 			selected_fraction = self.response_impl.selection_mass(
 				sel_level = pdat["selection_level"], sel_k = sel_k, sel_ec50 = ec50_range,
+				div_parent_is_expressor = self.population_data[pdat['parent']]["selection_level"] is None,
 				**{param : pdat[param] for param in self.response_impl.population_params}
 			)
 
@@ -734,6 +738,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			# fraction surviving protease for the whole ec50 sweep
 			selected_fraction = self.response_impl.selection_mass(
 				sel_level = pdat["selection_level"], sel_k = sel_k, sel_ec50 = ec50_range,
+				div_parent_is_expressor = self.population_data[pdat['parent']]["selection_level"] is None,
 				**{param : pdat[param] for param in self.response_impl.population_params}
 			)
 
@@ -756,6 +761,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 				# calculate fraction that survive protease using current model sel_ec50
 				prev_selected_fraction = self.response_impl.selection_mass(
 					sel_level = pdat["selection_level"], sel_k = sel_k, sel_ec50 = base_params['sel_ec50'][sample_i],
+					div_parent_is_expressor = self.population_data[pdat['parent']]["selection_level"] is None,
 					**{param : pdat[param] for param in self.response_impl.population_params}
 				)
 
@@ -907,7 +913,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 		porder = [
 			k for k, p in
-			sorted(model.population_data.items(), key=lambda x: x[1]["selection_level"])]
+			sorted(model.population_data.items(), key=lambda x: 0 if x[1]["selection_level"] is None else x[1]["selection_level"])]
 
 		pylab.plot(
 			[sel_levels[k] for k in porder],
@@ -959,6 +965,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			parent_pop_fraction = unorm(model.population_data[pdat['parent']]["P_sel"])[i]
 			selected_fraction = model.response_impl.selection_mass(
 				sel_level = pdat["selection_level"], sel_k = model.sel_k, sel_ec50 = fit['sel_ec50'][i],
+				div_parent_is_expressor = model.population_data[pdat['parent']]["selection_level"] is None,
 				**{param : pdat[param] for param in model.response_impl.population_params}
 			)
 			selected_fraction = model.min_selection_rate + (selected_fraction * (1 - model.min_selection_rate))
