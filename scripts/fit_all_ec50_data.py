@@ -60,7 +60,7 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     )
 
     counts_df = counts[dataset]
-    counts_df['ec50'] = fit_parameters['sel_ec50']
+    counts_df['kd'] = fit_parameters['kd']
 
     cis = np.array([
         x["cred_intervals"][.95] for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95]) 
@@ -90,10 +90,10 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     counts_df['sum_delta_llh'] = sum_llh
     counts_df['sum_signed_delta_llh'] = sum_signed_llh
 
-    counts_df["ec50_95ci_lbound"] = cis[:,0]
-    counts_df["ec50_95ci_ubound"] = cis[:,1]
-    counts_df["ec50_95ci"] = cis[:,1] - cis[:,0]
-    counts_df['sel_k'] = dict(model_parameters)['sel_k'] # dict(model_parameters)['sel_k']
+    counts_df["kd_95ci_lbound"] = cis[:,0]
+    counts_df["kd_95ci_ubound"] = cis[:,1]
+    counts_df["kd_95ci"] = np.log(cis[:,1]) - np.log(cis[:,0])
+    # counts_df['sel_k'] = dict(model_parameters)['sel_k'] # dict(model_parameters)['sel_k']
 
 
     counts_df=counts_df[['name'] +
@@ -102,8 +102,8 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
                         ['pred_counts%s' % p for p in sorted(model.model_populations)] +
                         ['delta_llh%s' % p for p in sorted(model.model_populations)] +
                         ['signed_delta_llh%s' % p for p in sorted(model.model_populations)] +
-                        ['sel_k','sum_delta_llh','sum_signed_delta_llh','ec50_95ci_lbound','ec50_95ci_ubound',
-                         'ec50_95ci','ec50']]
+                        ['sum_delta_llh','sum_signed_delta_llh','kd_95ci_lbound','kd_95ci_ubound',
+                         'kd_95ci','kd']]
 
     output_file = '{0}/{1}.fulloutput'.format(
         output_dir,
@@ -190,11 +190,11 @@ def main():
         # `rd1_tryp`) and then by selection round (0-6).
         model_input[name][rnd] = dict(
             parent            = r['parent'],
-            selection_level   = r['selection_strength'],
+            concentration     = r['concentration'],
             num_selected      = fix_num_selected(r['cells_collected']),
-            parent_expression = r['parent_expression'],     # bcov
-            Frac_sel_pop = none_or_div(r['fraction_collected'], r['parent_expression']),
-            conc_factor       = r['conc_factor']
+            # parent_expression = r['parent_expression'],     # bcov
+            Frac_sel_pop      = r['fraction_collected']
+            # conc_factor       = r['conc_factor']
         )
 
         # If there is data on the fraction of the population that was selected,
@@ -243,6 +243,16 @@ def main():
                 path.join(counts_dir, exper + ".counts"),
                 delim_whitespace=True)
 
+
+        
+        for i, col in enumerate(counts_df.columns):
+            
+            if ( i <= 1 or i == len(counts_df.columns)-1):
+                continue
+            counts_df.loc[counts_df[col] <= 20, counts_df.columns[i]] = 0
+            counts_df.loc[counts_df[col] <= 20, counts_df.columns[i+1]] = 0
+            print((counts_df[col] == 0).sum(), counts_df.columns[i+1])
+
         # Iterate through columns, excluding the first column (`name`), leaving
         # seven columns corresponding to the seven levels of selection (0-6)
         for i, col in enumerate(counts_df.columns[1:]):
@@ -283,11 +293,11 @@ def main():
     #---------------------------------------------------------------
     # Define features of the parameter space used in the analysis
     param_space = dict(
-        response_fn = ("NormalSpaceErfResponse",),  # Given ec50 and protease concentration, what fraction of cells are going to survive?
+        response_fn = ("KdResponse",),  # Given ec50 and protease concentration, what fraction of cells are going to survive?
         min_selection_mass = [5e-7],
-        min_selection_rate = [0.0001],
+        min_selection_rate = [True], #[0.0001],
         outlier_detection_opt_cycles = [3],
-        sel_k = [0.8]
+        # sel_k = [0.8]
     )
     # If any of the param_space has multiple values, queue up multiple
     # ec50 value fit runs to try all combinations
