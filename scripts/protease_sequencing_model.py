@@ -371,6 +371,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			# }
 			self.sel_range = dict(lower=min(sel_values) / 50, upper=max(sel_values) * 10)
 			logger.info("Inferred kd range: %s", self.sel_range)
+			print(self.sel_range['lower'])
 
 			start_kd = numpy.full_like(list(selected_observations.values())[0], self.sel_range['upper'] / 2 )
 
