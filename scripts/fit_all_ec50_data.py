@@ -62,9 +62,17 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     counts_df = counts[dataset]
     counts_df['kd'] = fit_parameters['kd']
 
-    cis = np.array([
-        x["cred_intervals"][.95] for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95]) 
-    ])
+    cis = []
+    super_cis = []
+    for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95], super_span=-15):
+        cis.append(x["cred_intervals"][.95])
+        super_cis.append(x["super_span"])
+    cis = np.array(cis)
+    super_cis = np.array(super_cis)
+
+    # cis = np.array([
+    #     x["cred_intervals"][.95] for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95]) 
+    # ])
 
     predictions = {
         p : {
@@ -87,12 +95,14 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
         counts_df['signed_delta_llh%s' % p] = counts_df['delta_llh%s' % p] * np.sign( counts_df['downsamp_counts%s' % p] - counts_df['pred_counts%s' % p]  )
         sum_llh +=  counts_df['delta_llh%s' % p]
         sum_signed_llh += counts_df['signed_delta_llh%s' % p]
+
     counts_df['sum_delta_llh'] = sum_llh
     counts_df['sum_signed_delta_llh'] = sum_signed_llh
 
     counts_df["kd_95ci_lbound"] = cis[:,0]
     counts_df["kd_95ci_ubound"] = cis[:,1]
     counts_df["kd_95ci"] = np.log(cis[:,1]) - np.log(cis[:,0])
+    counts_df['kd_superci'] =np.log(super_cis[:,1]) - np.log(super_cis[:,0])
     # counts_df['sel_k'] = dict(model_parameters)['sel_k'] # dict(model_parameters)['sel_k']
 
 
@@ -103,7 +113,7 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
                         ['delta_llh%s' % p for p in sorted(model.model_populations)] +
                         ['signed_delta_llh%s' % p for p in sorted(model.model_populations)] +
                         ['sum_delta_llh','sum_signed_delta_llh','kd_95ci_lbound','kd_95ci_ubound',
-                         'kd_95ci','kd']]
+                         'kd_superci', 'kd_95ci','kd']]
 
     output_file = '{0}/{1}.fulloutput'.format(
         output_dir,
@@ -249,8 +259,8 @@ def main():
             
             if ( i <= 1 or i == len(counts_df.columns)-1):
                 continue
-            counts_df.loc[counts_df[col] <= 20, counts_df.columns[i]] = 0
-            counts_df.loc[counts_df[col] <= 20, counts_df.columns[i+1]] = 0
+            counts_df.loc[counts_df[col] <= 3, counts_df.columns[i]] = 0
+            counts_df.loc[counts_df[col] <= 3, counts_df.columns[i+1]] = 0
             print((counts_df[col] == 0).sum(), counts_df.columns[i+1])
 
         # Iterate through columns, excluding the first column (`name`), leaving

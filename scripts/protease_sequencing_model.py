@@ -753,6 +753,9 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			resampled = self.opt_ec50_cred_outliers2(params)
 			params = self.optimize_params(resampled)
 
+
+		params = self.opt_ec50_cred_outliers2(params)
+
 		return params
 
 	def get_ec50_trace_range(self):
@@ -948,7 +951,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		return llh_by_ec50 - numpy.nanmax(llh_by_ec50)
 
 	# calculate all ec50 cred intervals at the same time
-	def estimate_ec50_creds(self, base_params, cred_spans = [.68, .95]):
+	def estimate_ec50_creds(self, base_params, cred_spans = [.68, .95], super_span=-15):
 		"""Estimate EC50 credible interval for a single ec50 parameter via model probability."""
 		#xs = numpy.arange(self.sel_range["lower"]+0.1, self.sel_range["upper"]-0.1, .1)
 		xs = self.get_ec50_trace_range()
@@ -976,13 +979,17 @@ class FractionalSelectionModel(traitlets.HasTraits):
 				u_b = xs[numpy.searchsorted(cdf, 1 - cdf_b, side="right")]
 				cred_intervals[cred_i] = (l_b, u_b)
 
+			super_low = xs[np.searchsorted(np.log(cdf), super_span, side="left").clip(0, len(xs)-1)]
+			super_high = xs[np.searchsorted(-np.log(1-cdf), -super_span, side="right").clip(0, len(xs)-1)]
+
 			cred_summaries.append(dict(
 				xs = xs,
 				pmf = pmf,
 				cdf = cdf,
 				logp = logp,
 				kd = base_params["kd"][ec50_i],
-				cred_intervals = cred_intervals
+				cred_intervals = cred_intervals,
+				super_span = (super_low, super_high)
 			))
 		return cred_summaries
 
