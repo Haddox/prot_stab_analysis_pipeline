@@ -78,6 +78,19 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 		return ["conc_factor"]
 
 	def selection_mass_impl(self, num, sel_level, sel_k, sel_ec50, conc_factor):
+		"""
+		Compute Frac_sel using a modified version of equation 10 from Rocklin et al., 2017, Science
+		
+		The modification involves normalizing Frac_sel so that it equals 1.0 when the enzyme
+		concentration equals zero. If sel_k = 0.8 (as in Rocklin et al.), then the maximum
+		value of Frac_sel, achieved when [E] = 0 (i.e., sel_level = negaive infinity), is
+		about 0.87. This causes problems if there is no selection upon sorting since the Bn
+		likelihood function for global selection uses Frac_sel_pop as the probability variable.
+		If Frac_sel_pop, computed as the weighted sum of Frac_sel among all variants, cannot
+		reach 1.0, then the Bn function will always return a low likelihood. By normalizing
+		Frac_sel values, Frac_sel_pop can now reach 1.0, allowing for improved likelihood.
+		(Hugh Haddox, September-24-2019)
+		"""
 		sel_xs = sel_k * (conc_factor ** (sel_level - sel_ec50) - 1.0)   # Bracketed term of Eq. 10
 																		 # Note that [E]/EC_50 has been replaced by
 		if num == numpy:                                                 # conc_factor ** (sel_level - sel_ec50)
@@ -85,7 +98,7 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 		else:                                                            # are passed to this function on a log scale, with the base
 			erf = T.erf                                                  # defined by conc_factor.
 
-		return (1.0 - erf(sel_xs)) / 2.0                                 # The full Eq. 10
+		return ((1.0 - erf(sel_xs)) / 2.0) / ((1.0 - erf(-sel_k)) / 2.0) # The full Eq. 10 (modified; see above)
 
 class NormalSpaceLogisticResponse(SelectionResponseFn):
 	@property
@@ -430,7 +443,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 		return params
 
-	def ec50_logp_trace(self, base_params, sample_i, ec50_range, include_global_terms=True):
+	def ec50_logp_trace(self, base_params, sample_i, ec50_range, include_global_terms=False):
 		llh_by_ec50_gen = numpy.zeros((len(ec50_range), len(self.model_populations)))
 
 		if self.min_selection_rate:

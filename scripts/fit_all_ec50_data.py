@@ -181,12 +181,12 @@ def main():
             conc_factor       = r['conc_factor']
         )
 
-        # If there is data on the fraction of the population that was selected,
-        # (`Frac_sel_pop`), then estimate the fraction that actually had designs
-        # that actually match one of the input designs (i.e., don't have sequence
-        # errors) by multiplying `Frac_sel_pop` by `matching_sequences`.
+        # If there is data on the fraction of the population that was selected
+        # (`Frac_sel_pop`) and if this fraction is above 0.999, then replace
+        # it with 0.999 since, in theory, this fraction should not be above 1.0
         if model_input[name][rnd]['Frac_sel_pop'] != None:
-            model_input[name][rnd]['Frac_sel_pop'] *= r['matching_sequences']
+            model_input[name][rnd]['Frac_sel_pop'] = min(0.999, model_input[name][rnd]['Frac_sel_pop'])
+        #    model_input[name][rnd]['Frac_sel_pop'] *= r['matching_sequences']
 
         # If there is data for `matching_sequences`, then estimate the number of
         # total cells collected that actually have designs matching one of the input
