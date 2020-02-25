@@ -259,8 +259,8 @@ def main():
             
             if ( i <= 1 or i == len(counts_df.columns)-1):
                 continue
-            counts_df.loc[counts_df[col] <= 3, counts_df.columns[i]] = 0
-            counts_df.loc[counts_df[col] <= 3, counts_df.columns[i+1]] = 0
+            # counts_df.loc[counts_df[col] <= 3, counts_df.columns[i]] = 0
+            # counts_df.loc[counts_df[col] <= 3, counts_df.columns[i+1]] = 0
             print((counts_df[col] == 0).sum(), counts_df.columns[i+1])
 
         # Iterate through columns, excluding the first column (`name`), leaving

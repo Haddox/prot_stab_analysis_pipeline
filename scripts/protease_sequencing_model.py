@@ -760,8 +760,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 	def get_ec50_trace_range(self):
 		# return numpy.linspace(self.sel_range['lower']+1,self.sel_range['upper']-1, (self.sel_range['upper'] - self.sel_range['lower'] - 2)*10 + 1
-		return np.exp(numpy.linspace(np.log(self.sel_range['lower'])+1,np.log(self.sel_range['upper'])-1, 
-					(np.log(self.sel_range['upper']) - np.log(self.sel_range['lower']) - 2)*10 + 1))
+		return np.exp(numpy.linspace(np.log(self.sel_range['lower']+1),np.log(self.sel_range['upper']-1), 
+					(np.log(self.sel_range['upper']) - np.log(self.sel_range['lower']) -2 )*10 + 1))
 
 	# calculate all ec50 traces at the same time
 	def ec50_logp_traces(self, base_params, ec50_range, subtract_max=True ):
@@ -981,6 +981,12 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 			super_low = xs[np.searchsorted(np.log(cdf), super_span, side="left").clip(0, len(xs)-1)]
 			super_high = xs[np.searchsorted(-np.log(1-cdf), -super_span, side="right").clip(0, len(xs)-1)]
+
+			kd = base_params["kd"][ec50_i]
+			if ( super_low == xs[0] ):
+				super_low = np.exp( np.log(kd) - ( np.log(super_high) - np.log(kd) ) )
+			if ( super_high == xs[-1] ):
+				super_high = np.exp( np.log(kd) + ( np.log(kd) - np.log(super_low) ) )
 
 			cred_summaries.append(dict(
 				xs = xs,
