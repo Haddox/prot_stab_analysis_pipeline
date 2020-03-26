@@ -139,7 +139,6 @@ def main():
     output_dir = args.output_dir
     print("\nWill analyze the datasets: {0}".format(', '.join(datasets)))
 
-
     # Initialize a the output directory if it doesn't already exist
     print("\nWill store the resulting EC50 values in the directory: {0}".format(output_dir))
     if not os.path.isdir(output_dir):
@@ -151,7 +150,7 @@ def main():
     summary = summary.dropna(how='all')
     summary = summary.fillna('-')
     summary = summary.where( summary != '-', None)
-
+    
     # Read in deep-sequencing counts from each experiment
     print("\nReading in counts from files stored in the directory: {0}".format(counts_dir))
     model_input = {}
@@ -186,7 +185,16 @@ def main():
         # it with 0.999 since, in theory, this fraction should not be above 1.0
         if model_input[name][rnd]['Frac_sel_pop'] != None:
             model_input[name][rnd]['Frac_sel_pop'] = min(0.999, model_input[name][rnd]['Frac_sel_pop'])
-        #    model_input[name][rnd]['Frac_sel_pop'] *= r['matching_sequences']
+            
+            # Next, correct `Frac_sel_pop` with a factor computed from the
+            # fraction of matching sequences post- vs. pre- selection. Only
+            # do this if the correction factor isn't NaN.
+            corr_factor = 'matching_sequences_corr_factor'
+            if not np.isnan(r[corr_factor]):
+                print("Correcting Frac_sel_pop with {0} for {1} {2}".format(
+                      corr_factor, r['input'], r['selection_strength']
+                ))
+                model_input[name][rnd]['Frac_sel_pop'] *= r[corr_factor]
 
         # If there is data for `matching_sequences`, then estimate the number of
         # total cells collected that actually have designs matching one of the input

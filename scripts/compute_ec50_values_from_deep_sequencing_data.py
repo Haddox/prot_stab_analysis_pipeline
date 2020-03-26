@@ -11,6 +11,7 @@ import subprocess
 from multiprocessing import Pool
 import time
 import pandas
+import numpy
 
 # Custom `Python` modules
 import deep_seq_utils
@@ -320,9 +321,34 @@ def main():
         counts_metadata_df, left_index=True, right_index=True, how="outer"
     )
     summary_df.reset_index(inplace=True)
+    
+    # For each sample with a parent, get the `matching_sequences`
+    # value of the parent
+    parent_matching_sequences = []
+    for (i, row) in summary_df.iterrows():
+        if numpy.isnan(row['parent']):
+            parent_matching_sequences.append(numpy.nan)
+        else:
+            parent_val = summary_df[
+                (summary_df['selection_strength'] == int(row['parent'])) &
+                (summary_df['input'] == row['input'])
+            ]['matching_sequences'].values
+            assert len(parent_val) == 1, row
+            parent_matching_sequences.append(parent_val[0])
+    summary_df['parent_matching_sequences'] = parent_matching_sequences
+
+    # Next, compute a correction factor that corresponds to
+    # `matching_sequences` / `parent_matching sequences`. This
+    # factor will be used to correct `Frac_sel_pop` below.
+    summary_df['matching_sequences_corr_factor'] = \
+        summary_df['matching_sequences'] / summary_df['parent_matching_sequences']
+    
+    # Write the dataframe with summary data to an output file
     experiments_column_order = [
-        'input', 'column', 'parent', 'selection_strength', 'conc_factor', 'parent_expression',
-        'fraction_collected', 'matching_sequences', 'cells_collected'
+        'input', 'column', 'parent', 'selection_strength', 'conc_factor',
+        'parent_expression', 'fraction_collected', 'matching_sequences',
+        'parent_matching_sequences', 'matching_sequences_corr_factor',
+        'cells_collected'
     ]
     output_experiments_file = os.path.join(ec50s_dir, 'experiments.csv')
     summary_df[experiments_column_order].to_csv(output_experiments_file, index=False)
