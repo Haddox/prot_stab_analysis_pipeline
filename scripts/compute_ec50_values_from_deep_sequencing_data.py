@@ -343,6 +343,14 @@ def main():
     summary_df['matching_sequences_corr_factor'] = \
         summary_df['matching_sequences'] / summary_df['parent_matching_sequences']
     
+    # Next, in the selection_strength column, replace values of 0 with
+    # blank entries.  Above, it was used to identify samples corresponding
+    # to the naive library. But, in the script that computes EC50 values,
+    # this column actually corresponds with protein concentration, and so
+    # naive libraries should have an empty entry here.
+    summary_df['selection_strength'] = \
+        summary_df['selection_strength'].replace(0, '')
+    
     # Write the dataframe with summary data to an output file
     experiments_column_order = [
         'input', 'column', 'parent', 'selection_strength', 'conc_factor',
