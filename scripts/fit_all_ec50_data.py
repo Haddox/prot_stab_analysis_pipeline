@@ -180,11 +180,10 @@ def main():
             conc_factor       = r['conc_factor']
         )
 
-        # If there is data on the fraction of the population that was selected
-        # (`Frac_sel_pop`) and if this fraction is above 0.999, then replace
-        # it with 0.999 since, in theory, this fraction should not be above 1.0
+        # If there is data on the fraction of the population that passed,
+        # the selection threshold, then multiply it by a correction factor
+        # and make sure that the value doesn't exceed 1.0
         if model_input[name][rnd]['Frac_sel_pop'] != None:
-            model_input[name][rnd]['Frac_sel_pop'] = min(0.999, model_input[name][rnd]['Frac_sel_pop'])
             
             # Next, correct `Frac_sel_pop` with a factor computed from the
             # fraction of matching sequences post- vs. pre- selection. Only
@@ -195,6 +194,13 @@ def main():
                       corr_factor, r['input'], r['selection_strength']
                 ))
                 model_input[name][rnd]['Frac_sel_pop'] *= r[corr_factor]
+            
+            # If `Frac_sel_pop` is above 0.999, then replace it with 0.999 since,
+            # in theory, this fraction should not be above 1.0
+            model_input[name][rnd]['Frac_sel_pop'] = min(
+                0.999,
+                model_input[name][rnd]['Frac_sel_pop']
+            )
 
         # If there is data for `matching_sequences`, then estimate the number of
         # total cells collected that actually have designs matching one of the input
