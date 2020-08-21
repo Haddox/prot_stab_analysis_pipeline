@@ -15,6 +15,7 @@ parser.add_argument("-collected_cells", type=int, default=100000)
 parser.add_argument("-conf_interval_exp", type=float, default=-20)
 parser.add_argument("-native_name", type=str, default=None)
 parser.add_argument("-ignore_all_zero", action="store_true")
+parser.add_argument("-tighter_ci", action="store_true")
 parser.add_argument("-force_select_ratio", type=float, default=1, 
                                         help="If we're not normalizing by a native. Set fitnesses"
                                              "such that counts.sum() / naive.sum() == force_select_ratio")
@@ -159,6 +160,9 @@ for i in range(len(df)):
     cis[i] = super_high - super_low
     fitnesses[i] = (super_high + super_low) / 2
 
+
+if ( args.tighter_ci ):
+    cis /= np.abs(fitnesses).clip(1, None)
 
 df['adjusted_counts'] = counts
 df['frac_sel'] = fitness_function( fitnesses )

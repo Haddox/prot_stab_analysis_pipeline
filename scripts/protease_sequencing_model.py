@@ -425,8 +425,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					testval=0.1,
 					# sd=0.3,
 					# mu=9.5,
-					lower=0.099,
-					upper=0.11)
+					lower=0.01,
+					upper=1)
 				)
 
 			# mu = self.add_fit_param(
@@ -448,11 +448,11 @@ class FractionalSelectionModel(traitlets.HasTraits):
 				"sigma",
 				pymc3.Uniform.dist(
 					# shape=self.num_members,
-					testval=3.0,
+					testval=1,
 					# sd=0.3,
 					# mu=9.5,
-					lower=2.99,
-					upper=3.01)
+					lower=0.8,
+					upper=10)
 				)
 
 			cs = self.add_fit_param(
@@ -685,16 +685,16 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			print("resetting parameters")
 			params['min_selection_rate'] = 0.001
 			params['mu'] = 9.5
-			params['sigma'] = 3
+			params['sigma'] = 1
 			params['viable_frac'][:] = 0.15
 			params['cs'] = 5
 			params['csmu'] = 0.1
 		else:
 			params['min_selection_rate'] = np.clip(params['min_selection_rate'], 0.0000000001, 0.0095)
 			params['mu'] = np.clip(params['mu'], 8.7, 10.3)
-			params['sigma'] = 3 #np.clip(params['sigma'], 0.9, 9)
+			params['sigma'] = np.clip(params['sigma'], 0.9, 9)
 			params['cs'] = np.clip(params['cs'], 2, 8)
-			params['csmu'] = 0.1 #np.clip(params['csmu'], 0.05, 0.8)
+			params['csmu'] = np.clip(params['csmu'], 0.05, 0.8)
 
 		logger.info(
 			"Modified %.3f outliers. (%i/%i)",
