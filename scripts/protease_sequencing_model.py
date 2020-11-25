@@ -761,7 +761,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 	def get_ec50_trace_range(self):
 		# return numpy.linspace(self.sel_range['lower']+1,self.sel_range['upper']-1, (self.sel_range['upper'] - self.sel_range['lower'] - 2)*10 + 1
 		return np.exp(numpy.linspace(np.log(self.sel_range['lower'])+1,np.log(self.sel_range['upper'])-1, 
-					(np.log(self.sel_range['upper']) - np.log(self.sel_range['lower']) -2 )*10 + 1))
+					np.rint((np.log(self.sel_range['upper']) - np.log(self.sel_range['lower']) -2 )*10 + 1).astype(np.int)))
 
 	# calculate all ec50 traces at the same time
 	def ec50_logp_traces(self, base_params, ec50_range, subtract_max=True ):
