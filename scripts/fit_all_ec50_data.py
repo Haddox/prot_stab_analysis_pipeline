@@ -53,7 +53,7 @@ def fit_model(model_input, dataset, parameters):
     )
     return model.find_MAP()
 
-def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parameters, output_dir):
+def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parameters, output_dir, dump_distr=False):
     model = (
         protease_sequencing_model.FractionalSelectionModel(**dict(model_parameters))
         .build_model(model_input[dataset])
@@ -64,7 +64,8 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
 
     cis = []
     super_cis = []
-    for x in model.estimate_ec50_creds(fit_parameters, cred_spans=[.95], super_span=-15):
+    creds = model.estimate_ec50_creds(fit_parameters, cred_spans=[.95], super_span=-15)
+    for x in creds:
         cis.append(x["cred_intervals"][.95])
         super_cis.append(x["super_span"])
     cis = np.array(cis)
@@ -85,6 +86,8 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     sum_llh=np.zeros(len(counts_df))
     sum_signed_llh=np.zeros(len(counts_df))
 
+    survival_frac_whos = []
+
     for p, ps in list(predictions.items()):
         counts_df['downsamp_counts%s' % p] = model.population_data[p]["P_sel"]
         counts_df['pred_counts%s' % p] = np.round(model.population_data[p]["P_sel"].sum() * predictions[p]['P_cleave'])
@@ -96,6 +99,25 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
         sum_llh +=  counts_df['delta_llh%s' % p]
         sum_signed_llh += counts_df['signed_delta_llh%s' % p]
 
+        # bcov hacks
+        pdat = model.population_data[p]
+        child_counts = pdat["P_sel"].astype(float)
+        pool_frac = child_counts / child_counts.sum()
+        counts_df['pool_frac%i'%p] = pool_frac 
+
+        if ( not pdat["parent"] is None ):
+
+            parent_counts = model.population_data[pdat["parent"]]["P_sel"].astype(float)
+            normed_child_counts = child_counts * parent_counts.sum() / child_counts.sum()
+
+            survival_frac = normed_child_counts * pdat["Frac_sel_pop"] / parent_counts.clip(1, None)
+
+            counts_df['survival_frac%i'%p] = survival_frac
+            survival_frac_whos.append(p)
+
+    counts_df['pool_frac0'] = counts_df['counts0'] / counts_df['counts0'].sum()
+
+
     counts_df['sum_delta_llh'] = sum_llh
     counts_df['sum_signed_delta_llh'] = sum_signed_llh
 
@@ -106,12 +128,16 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     # counts_df['sel_k'] = dict(model_parameters)['sel_k'] # dict(model_parameters)['sel_k']
 
 
+
     counts_df=counts_df[['name'] +
                         ['counts%s' % p for p in sorted(model.population_data)] +
                         ['downsamp_counts%s' % p for p in sorted(model.model_populations)] +
                         ['pred_counts%s' % p for p in sorted(model.model_populations)] +
                         ['delta_llh%s' % p for p in sorted(model.model_populations)] +
                         ['signed_delta_llh%s' % p for p in sorted(model.model_populations)] +
+                        ['pool_frac0'] + 
+                        ['pool_frac%s' % p for p in sorted(model.model_populations)] +
+                        ['survival_frac%s' % p for p in sorted(survival_frac_whos)] +
                         ['sum_delta_llh','sum_signed_delta_llh','kd_95ci_lbound','kd_95ci_ubound',
                          'kd_superci', 'kd_95ci','kd']]
 
@@ -121,6 +147,23 @@ def report_model_ec50(model_input, counts, dataset, model_parameters, fit_parame
     )
     print("Writing the output data to a file called: {0}".format(output_file))
     counts_df.to_csv(output_file, index=False, sep='\t')
+
+    if ( dump_distr ):
+        dat = np.zeros((len(creds), len(creds[0]['xs'])))
+        for i, x in enumerate(creds):
+            dat[i] = x['logp']
+            
+        headers = ["%.5f"%x for x in creds[0]['xs']]
+
+        distr_df = pandas.DataFrame(dat, columns=headers)
+        distr_df['name'] = counts_df['name']
+
+        output_file2 = '{0}/{1}_kd_logp.dat'.format(
+            output_dir,
+            dataset
+        )
+
+        distr_df.to_csv(output_file2, index=None, sep=" ", float_format='%.3f')
 
     return counts_df
 
@@ -138,6 +181,7 @@ def main():
     parser.add_argument("--experimental_summary_file", help="a path to the input experimental summary file")
     parser.add_argument("--datasets", help="a string with comma-separated datasets (e.g., 'dataset1,dataset2,etc.'")
     parser.add_argument("--output_dir", help="a path to an output directory where all the results will be stored. This directory will be made if it does not already exist.")
+    parser.add_argument("--dump_prob_dist", action="store_true", help="dump the probability distributions used to arrive at the final values")
     args = parser.parse_args()
 
     # Assign command-line arguments to variables
@@ -324,7 +368,7 @@ def main():
             fit_model(model_input, d, p),
             output_dir
         )
-        report_model_ec50(*my_fit_model)
+        report_model_ec50(*my_fit_model, dump_distr=args.dump_prob_dist)
 
 if __name__ == "__main__":
     main()

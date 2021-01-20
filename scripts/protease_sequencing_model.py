@@ -106,12 +106,24 @@ class NormalSpaceErfResponse(SelectionResponseFn):
 		return (1.0 - erf(sel_xs)) / 2.0                                # The full Eq. 10
 
 
+# mirror of Gabe's paper
+
+# f_i_r = conc_r / ( KD_i + conc_r ) # this is the KD equation for fraction of protein i bound at concentration r
+
+# Frac_sel = 1 - CDF_lognormal( Ls / f_i_r, mu, sigma )
+
+# Frac_sel = 1/2 - 1/2 * erf( ( Cs - ln( f_i_r ) - mu ) / ( sqrt(2) * sigma ) )
+
+# let csmu = cs - mu
+
+# Frac_sel = 1/2 - 1/2 * erf( ( csmu + ln( ( kd + conc ) / conc ) ) / ( sqrt(2) * sigma ) )
+
 class KdResponse(SelectionResponseFn):
 	@property
 	def population_params(self):
 		return []
 
-	def selection_mass_impl(self, num, conc, cs, mu, sigma, kd, viable_frac, csmu):
+	def selection_mass_impl(self, num, conc, sigma, kd, csmu):
 
 		if num == numpy:           
 			erf = scipy.special.erf
@@ -357,17 +369,16 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			# sel_k=self.sel_k
 
 
-			# sel_values = protease concentrations [0, 1, 2, 3, 4, 5, 6]
+			# sel_values = sorted concentrations [1000, 100, 10, 1]
 			sel_values = set(
 				float(p["concentration"])
 				for p in list(self.population_data.values())
 				if p["concentration"] is not None
 			)
-			# sel_mag = 6
-			# sel_mag = max(sel_values) - min(sel_values)
+
 			# self.sel_range = {
-			#  lower: -3,
-			#  upper: 9
+			#  lower: min_sort_conc / 50,
+			#  upper: max_sort_conc * 100
 			# }
 			self.sel_range = dict(lower=min(sel_values) / 50, upper=max(sel_values) * 100)
 			logger.info("Inferred kd range: %s", self.sel_range)
@@ -375,8 +386,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 			start_kd = numpy.full_like(list(selected_observations.values())[0], self.sel_range['upper'] / 2 )
 
-			# == sel_ec50 ==
-			# Create a pymc3 random variable from -3 to 9 with guess = start_ec50
+			# Create a pymc3 random variable using the ranges in sel_range for KD values
 			kd = self.add_fit_param(
 				"kd",
 				pymc3.Uniform.dist(
@@ -386,38 +396,9 @@ class FractionalSelectionModel(traitlets.HasTraits):
 				)
 			)
 
-			viable_frac = self.add_fit_param(
-				"viable_frac",
-				pymc3.Uniform.dist(
-					shape=self.num_members,
-					testval=0.15,
-					lower=0.05,
-					upper=0.50
-				)
-			)
-			# kd = self.add_fit_param(
-			# 	"kd",
-			# 	pymc3.Lognormal.dist(
-			# 		shape=self.num_members,
-			# 		testval=start_kd,
-			# 		mu=(np.log(max(sel_values)) + np.log(min(sel_values))) / 2,
-			# 		sd=(np.log(max(sel_values)) - np.log(min(sel_values))) / 4)
-			# 	)
 
 
-			# == sel_ec50 ==
-			# Create a pymc3 random variable from -3 to 9 with guess = start_ec50
-			mu = self.add_fit_param(
-				"mu",
-				pymc3.Uniform.dist(
-					# shape=self.num_members,
-					testval=9.5,
-					# sd=0.3,
-					# mu=9.5,
-					lower=8.5,
-					upper=10.5)
-				)
-
+			# ( cs - mu ) from Gabe's paper (he dropped these into Ksel )
 			csmu = self.add_fit_param(
 				"csmu",
 				pymc3.Uniform.dist(
@@ -429,21 +410,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					upper=1)
 				)
 
-			# mu = self.add_fit_param(
-			# 	"mu",
-			# 	pymc3.Normal.dist(
-			# 		shape=self.num_members,
-			# 		testval=9.5,
-			# 		sd=0.3,
-			# 		mu=9.5
-			# 		)
-			# 	)
 
-
-			# sigma = self.add_fit_param(
-			# 			"sigma",
-			# 			pymc3.HalfNormal.dist(sd=1, testval=1))
-
+			# sigma from Gabe's paper (he dropped this into Ksel )
 			sigma = self.add_fit_param(
 				"sigma",
 				pymc3.Uniform.dist(
@@ -455,20 +423,6 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					upper=10)
 				)
 
-			cs = self.add_fit_param(
-				"cs",
-				pymc3.Uniform.dist(
-					# shape=self.num_members,
-					testval=5,
-					# sd=0.3,
-					# mu=9.5,
-					lower=1,
-					upper=9)
-				)
-
-			# cs = self.add_fit_param(
-			# 			"cs",
-			# 			pymc3.HalfNormal.dist(sd=5, testval=5))
 
 
 			# add a random rate called min_selection_rate at which each cell can randomly get accross
@@ -495,7 +449,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			else:
 				min_selection_rate = 0.0
 
-			# idk what this does but it's set to a constant 5e-7 and takes the float() path
+			# I still don't understand min_selection_mass exactly. It's sort of like the minimum fraction
+			#  of the pool that we have to select
 			if self.min_selection_mass:
 				if self.min_selection_mass == "global":
 					logger.info("Adding global adaptive min_selection_mass.")
@@ -538,7 +493,7 @@ class FractionalSelectionModel(traitlets.HasTraits):
 					#  equation, and is based on sel_ec50
 					# Indicates fraction of cells expected to survive given the ec50 and concentration
 					Frac_sel = self.response_impl.selection_mass(                                  # Eq. 10, where "sel_k" is K_sel and
-						conc = pdat["concentration"], mu = mu, sigma = sigma, cs = cs, kd = kd, viable_frac = viable_frac, csmu = csmu,
+						conc = pdat["concentration"], sigma = sigma, kd = kd, csmu = csmu,
 						**{param : pdat[param] for param in self.response_impl.population_params}  # selection_level is the enzyme "concentration" on a
 					)                                                                              # log scale, with base specified in the input.
 
@@ -684,16 +639,11 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		if ( num_outlier / self.num_members > 0.2 ):
 			print("resetting parameters")
 			params['min_selection_rate'] = 0.001
-			params['mu'] = 9.5
 			params['sigma'] = 1
-			params['viable_frac'][:] = 0.15
-			params['cs'] = 5
 			params['csmu'] = 0.1
 		else:
 			params['min_selection_rate'] = np.clip(params['min_selection_rate'], 0.0000000001, 0.0095)
-			params['mu'] = np.clip(params['mu'], 8.7, 10.3)
 			params['sigma'] = np.clip(params['sigma'], 0.9, 9)
-			params['cs'] = np.clip(params['cs'], 2, 8)
 			params['csmu'] = np.clip(params['csmu'], 0.05, 0.8)
 
 		logger.info(
@@ -811,8 +761,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 			# 	sel_k = self.sel_k
 
 			selected_fraction = self.response_impl.selection_mass(                                  # Eq. 10, where "sel_k" is K_sel and
-				conc = pdat["concentration"], mu = base_params["mu"], sigma = base_params["sigma"], cs = base_params["cs"], kd = ec50_range,
-				viable_frac = base_params['viable_frac'][...,None], csmu = base_params['csmu'],
+				conc = pdat["concentration"], sigma = base_params["sigma"], kd = ec50_range,
+				csmu = base_params['csmu'],
 				**{param : pdat[param] for param in self.response_impl.population_params}  # selection_level is the enzyme "concentration" on a
 					) 
 
@@ -1130,8 +1080,8 @@ class FractionalSelectionModel(traitlets.HasTraits):
 
 			parent_pop_fraction = unorm(model.population_data[pdat['parent']]["P_sel"])[i]
 			selected_fraction = model.response_impl.selection_mass(                                  # Eq. 10, where "sel_k" is K_sel and
-						conc = pdat["concentration"], mu = fit['mu'], sigma = fit['sigma'], cs = fit['cs'], kd = fit['kd'][i],
-						viable_frac = fit['viable_frac'][i], csmu = fit['csmu'],
+						conc = pdat["concentration"], sigma = fit['sigma'], kd = fit['kd'][i],
+						 csmu = fit['csmu'],
 						**{param : pdat[param] for param in model.response_impl.population_params}  # selection_level is the enzyme "concentration" on a
 					) 
 			# selected_fraction = model.response_impl.selection_mass(
@@ -1156,13 +1106,12 @@ class FractionalSelectionModel(traitlets.HasTraits):
 		sel_ec50 = fit["kd"][i]
 		# min_sel = fit["min_selection_rate"][i]
 		# mu = fit['mu'][i]
-		via_frac = fit['viable_frac'][i]
 		# sel_k = fit["sel_k"][i] if len(fit["sel_k"]) > 1 else fit["sel_k"]
 		# sel_k = model.sel_k
 		# pylab.plot(xs, scipy.special.expit(-sel_k * (xs - sel_ec50)), alpha=.75)
 		pylab.yticks([], [])
 
-		pylab.title("%s - kd: %.2f - via_frac: %.2f" % (i, sel_ec50, via_frac,  ))
+		pylab.title("%s - kd: %.2f " % (i, sel_ec50,  ))
 
 
 	# make a really nice graph for a single design
